@@ -181,25 +181,89 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
   .field-row{grid-template-columns:1fr;}
   .ask-bar{max-width:none; width:100%;}
 }
+
+/* ============ LOGIN SCREEN ============ */
+#login-screen{
+  display:none; position:fixed; inset:0; z-index:100; background:var(--bg);
+  align-items:center; justify-content:center; padding:20px;
+  background-image:linear-gradient(var(--grid-line) 1px, transparent 1px),linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size:28px 28px;
+}
+#login-screen.show{display:flex;}
+.login-card{
+  width:100%; max-width:380px; background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-card); padding:30px 28px; box-shadow:var(--shadow-pop);
+}
+
+/* ============ PRIMARY SECTION NAV ============ */
+.role-badge{display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--radius-pill); font-size:10.5px; font-family:var(--font-mono); border:1px solid var(--border); color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em;}
+.role-badge.editor{color:var(--brass-strong); border-color:var(--brass);}
+.account-box{padding:10px 16px; border-top:1px solid var(--border); border-bottom:1px solid var(--border);}
+.account-row{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;}
+.account-email{font-size:12px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;}
+.account-links{display:flex; gap:10px; margin-top:4px;}
+.account-links button{background:none; border:none; padding:0; font-size:11.5px; color:var(--ink-faint); cursor:pointer; text-decoration:underline;}
+.account-links button:hover{color:var(--brass);}
+.placeholder-page{max-width:600px; margin:8vh auto 0; text-align:left;}
+.placeholder-page .kicker{color:var(--brass-strong); font-family:var(--font-mono); font-size:12px; margin-bottom:10px;}
+.placeholder-page h2{font-size:28px; margin-bottom:12px;}
+.placeholder-page p{color:var(--ink-soft); font-size:14.5px;}
+.team-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--grid-line);}
+.team-row:last-child{border-bottom:none;}
+.team-row .who{font-size:13px;}
+.team-row .who .email{color:var(--ink-faint); font-size:11.5px; display:block;}
 </style>
 </head>
 <body>
 <div id="setup-banner"><span id="setup-banner-text"></span></div>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand-mark" style="margin-bottom:22px;"><span class="glyph"></span><h1>Gridwork</h1></div>
+    <h2 id="login-title" style="font-size:22px;margin-bottom:6px;">Sign in</h2>
+    <p style="color:var(--ink-faint);font-size:13px;margin:0 0 20px;" id="login-sub">Use your team account to continue.</p>
+    <div class="field"><label>Email</label><input type="text" id="login-email" autocomplete="username" /></div>
+    <div class="field"><label>Password</label><input type="password" id="login-password" autocomplete="current-password" /></div>
+    <div class="field" id="login-name-field" style="display:none;"><label>Your name</label><input type="text" id="login-name" /></div>
+    <button class="btn btn-primary" id="login-submit" style="width:100%;justify-content:center;margin-top:4px;">Sign in</button>
+    <div class="ask-note" id="login-note" style="margin-top:10px;"></div>
+    <div style="margin-top:18px;font-size:13px;color:var(--ink-soft);">
+      <span id="login-toggle-text">Don't have an account?</span>
+      <button class="btn btn-ghost btn-sm" id="login-toggle" style="padding:2px 6px;min-height:auto;">Sign up</button>
+    </div>
+  </div>
+</div>
+
 <div id="app">
   <aside id="sidebar">
     <div class="brand">
       <div class="brand-mark"><span class="glyph"></span><h1>Gridwork</h1></div>
-      <p>Dashboards from any data.</p>
+      <p>Audit workspace</p>
     </div>
     <div class="nav-section">
-      <div class="nav-section-head"><span>Datasets</span></div>
-      <ul class="nav-list" id="nav-datasets"></ul>
-      <button class="nav-add" id="btn-add-data">+ Add data</button>
+      <ul class="nav-list" id="nav-sections"></ul>
     </div>
-    <div class="nav-section">
-      <div class="nav-section-head"><span>Dashboards</span></div>
-      <ul class="nav-list" id="nav-dashboards"></ul>
-      <button class="nav-add" id="btn-add-dashboard">+ New dashboard</button>
+    <div id="dashboard-subnav">
+      <div class="nav-section">
+        <div class="nav-section-head"><span>Datasets</span></div>
+        <ul class="nav-list" id="nav-datasets"></ul>
+        <button class="nav-add" id="btn-add-data">+ Add data</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-head"><span>Dashboards</span></div>
+        <ul class="nav-list" id="nav-dashboards"></ul>
+        <button class="nav-add" id="btn-add-dashboard">+ New dashboard</button>
+      </div>
+    </div>
+    <div class="account-box" id="account-box" style="display:none;">
+      <div class="account-row">
+        <span class="account-email" id="account-email"></span>
+        <span class="role-badge" id="account-role"></span>
+      </div>
+      <div class="account-links">
+        <button id="btn-manage-team">Manage team</button>
+        <button id="btn-sign-out">Sign out</button>
+      </div>
     </div>
     <div id="sidebar-foot">
       <div class="sync-state" id="sync-state"><span class="led off"></span><span>Starting…</span></div>
@@ -244,6 +308,15 @@ if(CONFIGURED && window.supabase){
 var MAX_ROWS = 20000;
 var AGGS = [["sum","Sum"],["avg","Average"],["count","Count"],["min","Minimum"],["max","Maximum"]];
 var CHART_TYPES = [["bar","Bar"],["line","Line"],["pie","Pie"],["scatter","Scatter"],["kpi","Big number"],["table","Table"]];
+var SECTIONS = [
+  ["dashboard","Dashboard"],
+  ["audit-plan","Audit Plan"],
+  ["observations","Observations"],
+  ["rcm","RCM"],
+  ["testing","Testing"],
+  ["reports","Reports"],
+  ["documents","Documents"]
+];
 
 function uid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -274,6 +347,7 @@ function palette(){
     : ['#9C6B1E','#1F5C56','#A5402F','#5B6E8C','#5F7A3D','#8E5B8F','#3E7896','#8A6B22'];
 }
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function canEdit(){ return !sb || Auth.isEditor(); }
 
 /* ================= SETUP BANNER ================= */
 function showSetupBanner(){
@@ -320,6 +394,44 @@ function monthBin(v){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
 
+/* ================= AUTH ================= */
+var Auth = {
+  user: null, profile: null,
+
+  init: async function(){
+    if(!sb) return;
+    var res = await sb.auth.getSession();
+    var session = res && res.data && res.data.session;
+    if(session){ this.user = session.user; await this.loadProfile(); }
+  },
+  loadProfile: async function(){
+    if(!this.user || !sb) return;
+    try{
+      var res = await sb.from('profiles').select('*').eq('id', this.user.id).single();
+      if(!res.error){ this.profile = res.data; }
+    }catch(e){ /* profile may not exist yet on very first sign-up tick */ }
+  },
+  isEditor: function(){ return !!(this.profile && this.profile.role==='editor'); },
+  displayName: function(){
+    if(this.profile && this.profile.full_name) return this.profile.full_name;
+    return this.user ? this.user.email : '';
+  },
+  signUp: async function(email, password, fullName){
+    var res = await sb.auth.signUp({ email: email, password: password, options: { data: { full_name: fullName } } });
+    if(res.error) throw res.error;
+    return res.data;
+  },
+  signIn: async function(email, password){
+    var res = await sb.auth.signInWithPassword({ email: email, password: password });
+    if(res.error) throw res.error;
+    return res.data;
+  },
+  signOut: async function(){
+    await sb.auth.signOut();
+    location.reload();
+  }
+};
+
 /* ================= STORE (Supabase, localStorage fallback) ================= */
 var Store = {
   mode: 'local',
@@ -351,27 +463,48 @@ var Store = {
 
   refreshAll: async function(){
     if(!sb) return;
-    try{
-      var dsRes = await sb.from('datasets').select('*').order('created_at', {ascending:false});
-      var dashRes = await sb.from('dashboards').select('*').order('created_at', {ascending:false});
-      var cardRes = await sb.from('cards').select('*');
-      var next = {};
-      (dsRes.data||[]).forEach(function(r){ next[r.id] = {id:r.id, name:r.name, columns:r.columns||[], rows:r.rows||[], rowCount:r.row_count||0, truncated:r.truncated, createdAt:new Date(r.created_at).getTime()}; });
-      this.datasets = next;
-      var nextDash = {};
-      (dashRes.data||[]).forEach(function(r){ nextDash[r.id] = {id:r.id, name:r.name, cardIds:r.card_ids||[], createdAt:new Date(r.created_at).getTime()}; });
-      this.dashboards = nextDash;
-      var nextCards = {};
-      (cardRes.data||[]).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg}; });
-      this.cards = nextCards;
-    }catch(e){ toast('Could not load data from Supabase — check your setup.', true); }
+    var self = this;
+    // Coalesce overlapping calls: if a refresh is already in flight, queue at
+    // most one more instead of firing several concurrent fetches that can
+    // finish out of order and clobber each other.
+    if(this._refreshing){ this._refreshQueued = true; return this._refreshing; }
+    this._refreshing = (async function(){
+      try{
+        var dsRes = await sb.from('datasets').select('*').order('created_at', {ascending:false});
+        if(dsRes.error) throw dsRes.error;
+        var dashRes = await sb.from('dashboards').select('*').order('created_at', {ascending:false});
+        if(dashRes.error) throw dashRes.error;
+        var cardRes = await sb.from('cards').select('*');
+        if(cardRes.error) throw cardRes.error;
+        var next = {};
+        (dsRes.data||[]).forEach(function(r){ next[r.id] = {id:r.id, name:r.name, columns:r.columns||[], rows:r.rows||[], rowCount:r.row_count||0, truncated:r.truncated, createdAt:new Date(r.created_at).getTime()}; });
+        self.datasets = next;
+        var nextDash = {};
+        (dashRes.data||[]).forEach(function(r){ nextDash[r.id] = {id:r.id, name:r.name, cardIds:r.card_ids||[], createdAt:new Date(r.created_at).getTime()}; });
+        self.dashboards = nextDash;
+        var nextCards = {};
+        (cardRes.data||[]).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg}; });
+        self.cards = nextCards;
+      }catch(e){ toast('Could not load data from Supabase — check your setup.', true); }
+      finally{
+        self._refreshing = null;
+        if(self._refreshQueued){ self._refreshQueued = false; await self.refreshAll(); }
+      }
+    })();
+    return this._refreshing;
   },
   subscribeAll: function(){
     var self = this;
+    var timer = null;
+    function scheduleRefresh(){
+      // Debounce: a single dataset upload can trigger several rapid table
+      // changes (insert dataset, insert dashboard, insert cards, update
+      // dashboard). Wait for the burst to settle, then refresh once.
+      clearTimeout(timer);
+      timer = setTimeout(function(){ self.refreshAll().then(renderAll); }, 300);
+    }
     ['datasets','dashboards','cards'].forEach(function(table){
-      sb.channel(table+'-changes').on('postgres_changes', {event:'*', schema:'public', table:table}, function(){
-        self.refreshAll().then(renderAll);
-      }).subscribe();
+      sb.channel(table+'-changes').on('postgres_changes', {event:'*', schema:'public', table:table}, scheduleRefresh).subscribe();
     });
   },
   getRows: function(datasetId){
@@ -569,6 +702,7 @@ function parseExcelFile(file, cb){
 
 /* ================= STATE ================= */
 var state = {
+  section:'dashboard',
   view:'home', currentDatasetId:null, currentDashboardId:null,
   uploadTab:'file', uploadHeaders:[], uploadRows:[], uploadCols:[],
   manualCols:['Column A','Column B'], manualRows:[['',''],['','']],
@@ -576,7 +710,37 @@ var state = {
 };
 
 /* ================= RENDER: SIDEBAR ================= */
+function renderSectionNav(){
+  var el = document.getElementById('nav-sections');
+  if(!el) return;
+  el.innerHTML = SECTIONS.map(function(s){
+    var active = state.section===s[0];
+    return '<li><button class="nav-item'+(active?' active':'')+'" data-open-section="'+s[0]+'"><span class="dot"></span><span class="name">'+esc(s[1])+'</span></button></li>';
+  }).join('');
+  Array.prototype.forEach.call(el.querySelectorAll('[data-open-section]'), function(btn){
+    btn.onclick = function(){ openSection(btn.getAttribute('data-open-section')); closeSidebarMobile(); };
+  });
+  var subnav = document.getElementById('dashboard-subnav');
+  if(subnav) subnav.style.display = state.section==='dashboard' ? '' : 'none';
+}
+function renderAccountBox(){
+  var box = document.getElementById('account-box');
+  if(!box) return;
+  if(!sb || !Auth.user){ box.style.display = 'none'; return; }
+  box.style.display = '';
+  document.getElementById('account-email').textContent = Auth.displayName();
+  var roleEl = document.getElementById('account-role');
+  roleEl.textContent = Auth.isEditor() ? 'Editor' : 'Viewer';
+  roleEl.className = 'role-badge'+(Auth.isEditor()?' editor':'');
+  document.getElementById('btn-manage-team').style.display = Auth.isEditor() ? '' : 'none';
+}
 function renderSidebar(){
+  renderSectionNav();
+  renderAccountBox();
+  var addDataBtn = document.getElementById('btn-add-data');
+  var addDashBtn = document.getElementById('btn-add-dashboard');
+  if(addDataBtn) addDataBtn.style.display = canEdit() ? '' : 'none';
+  if(addDashBtn) addDashBtn.style.display = canEdit() ? '' : 'none';
   var dsList = document.getElementById('nav-datasets');
   var dashList = document.getElementById('nav-dashboards');
   var datasets = Object.values(Store.datasets);
@@ -597,6 +761,11 @@ function renderSidebar(){
   Array.prototype.forEach.call(document.querySelectorAll('[data-open-dataset]'), function(btn){ btn.onclick = function(){ openDataset(btn.getAttribute('data-open-dataset')); closeSidebarMobile(); }; });
   Array.prototype.forEach.call(document.querySelectorAll('[data-open-dashboard]'), function(btn){ btn.onclick = function(){ openDashboard(btn.getAttribute('data-open-dashboard')); closeSidebarMobile(); }; });
 }
+function openSection(sec){
+  state.section = sec;
+  if(sec==='dashboard'){ state.view = state.view==='dataset'||state.view==='dashboard' ? state.view : 'home'; }
+  renderAll();
+}
 function updateSyncBadge(){
   var el = document.getElementById('sync-state');
   if(Store.mode==='db'){ el.innerHTML = '<span class="led on"></span><span>Synced across devices</span>'; }
@@ -605,6 +774,14 @@ function updateSyncBadge(){
 function closeSidebarMobile(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
 
 /* ================= RENDER: MAIN VIEWS ================= */
+var SECTION_INFO = {
+  'audit-plan': {label:'Audit Plan', desc:'Plan and schedule audits \u2014 scope, timing, and who\u2019s assigned to each one.'},
+  'observations': {label:'Observations', desc:'Log findings raised during an audit, their severity, and their status through to resolution.'},
+  'rcm': {label:'Risk Control Matrix', desc:'Map risks to the controls meant to address them, and track how effective each control is.'},
+  'testing': {label:'Testing', desc:'Record test procedures run against controls, sample sizes, and pass/fail results.'},
+  'reports': {label:'Reports', desc:'Generate and export formatted reports pulled from your audit data.'},
+  'documents': {label:'Documents', desc:'Store and organize supporting evidence and workpapers for each audit.'}
+};
 function renderAll(){
   renderSidebar();
   var title = document.getElementById('topbar-title');
@@ -613,18 +790,26 @@ function renderAll(){
   var canvas = document.getElementById('canvas');
   actions.innerHTML = ''; sub.textContent = '';
 
+  if(state.section!=='dashboard'){
+    var info = SECTION_INFO[state.section] || {label:state.section, desc:''};
+    title.textContent = info.label;
+    canvas.innerHTML = '<div class="placeholder-page"><div class="kicker">PHASE 2 \u00b7 COMING NEXT</div><h2>'+esc(info.label)+'</h2><p>'+esc(info.desc)+'</p><p>This section is part of the plan but isn\u2019t built yet \u2014 it\u2019s next up, right after the login system you\u2019re using right now.</p></div>';
+    return;
+  }
+
   var hasAnyDataset = Object.keys(Store.datasets).length>0;
 
   if(state.view==='home' && !hasAnyDataset){
     title.textContent = 'Gridwork';
-    canvas.innerHTML = '<div class="hero"><div class="kicker">DASHBOARDS · ANY DATA</div><h2>Turn a spreadsheet into<br>a dashboard in a minute.</h2><p>Upload a CSV or Excel file, paste rows straight from a spreadsheet, or type data in by hand. Gridwork detects your columns and builds charts you can share.</p><div class="hero-actions"><button class="btn btn-primary" id="hero-add">+ Add your data</button></div></div>';
-    document.getElementById('hero-add').onclick = openUploadModal;
+    var heroCta = canEdit() ? '<div class="hero-actions"><button class="btn btn-primary" id="hero-add">+ Add your data</button></div>' : '<p style="color:var(--ink-faint);font-size:13px;">Ask an editor on your team to add the first dataset.</p>';
+    canvas.innerHTML = '<div class="hero"><div class="kicker">DASHBOARDS · ANY DATA</div><h2>Turn a spreadsheet into<br>a dashboard in a minute.</h2><p>Upload a CSV or Excel file, paste rows straight from a spreadsheet, or type data in by hand. Gridwork detects your columns and builds charts you can share.</p>'+heroCta+'</div>';
+    if(canEdit()) document.getElementById('hero-add').onclick = openUploadModal;
     return;
   }
   if(state.view==='home' && hasAnyDataset){
     title.textContent = 'Datasets';
     sub.textContent = Object.keys(Store.datasets).length+' dataset(s)';
-    actions.appendChild(mkBtn('+ Add data', openUploadModal, 'btn-primary'));
+    if(canEdit()) actions.appendChild(mkBtn('+ Add data', openUploadModal, 'btn-primary'));
     renderDatasetsGrid(canvas);
     return;
   }
@@ -651,8 +836,10 @@ function renderDatasetDetail(title, sub, actions, canvas){
   title.textContent = d.name;
   sub.textContent = (d.rowCount||0)+' rows · '+((d.columns||[]).length)+' columns'+(d.truncated?' · trimmed to fit':'');
   actions.appendChild(mkBtn('Download CSV', function(){ downloadDatasetCSV(d); }, ''));
-  actions.appendChild(mkBtn('Build dashboard', function(){ buildXrayDashboard(d.id); }, 'btn-primary'));
-  actions.appendChild(mkBtn('Delete', function(){ confirmDeleteDataset(d.id); }, 'btn-danger'));
+  if(canEdit()){
+    actions.appendChild(mkBtn('Build dashboard', function(){ buildXrayDashboard(d.id); }, 'btn-primary'));
+    actions.appendChild(mkBtn('Delete', function(){ confirmDeleteDataset(d.id); }, 'btn-danger'));
+  }
   var rows = Store.getRows(d.id);
   var sample = rows.slice(0,50);
   var cols = d.columns||[];
@@ -699,12 +886,14 @@ function renderDashboardView(title, sub, actions, canvas){
   title.textContent = dash.name;
   var cardIds = dash.cardIds||[];
   sub.textContent = cardIds.length+' chart(s)';
-  actions.appendChild(mkBtn('+ Add chart', function(){ openChartConfigModal(dash.id); }, 'btn-primary'));
-  actions.appendChild(mkBtn('Rename', function(){ renameDashboard(dash.id); }, ''));
-  actions.appendChild(mkBtn('Delete', function(){ confirmDeleteDashboard(dash.id); }, 'btn-danger'));
+  if(canEdit()){
+    actions.appendChild(mkBtn('+ Add chart', function(){ openChartConfigModal(dash.id); }, 'btn-primary'));
+    actions.appendChild(mkBtn('Rename', function(){ renameDashboard(dash.id); }, ''));
+    actions.appendChild(mkBtn('Delete', function(){ confirmDeleteDashboard(dash.id); }, 'btn-danger'));
+  }
 
   var wrap = document.createElement('div');
-  if(Object.keys(Store.datasets).length){
+  if(Object.keys(Store.datasets).length && canEdit()){
     var askWrap = document.createElement('div'); askWrap.style.marginBottom = '18px'; askWrap.innerHTML = buildAskBarHTML();
     wrap.appendChild(askWrap);
   }
@@ -794,14 +983,17 @@ function appendCardEl(container, card){
   var el = document.createElement('div');
   el.className = 'chart-card'+(card.type==='kpi'?' card-kpi':'')+(card.type==='table'?' card-table':'');
   el.id = 'card-'+card.id;
-  el.innerHTML = '<div class="card-head"><h3>'+esc(card.title)+'</h3><div class="card-menu-wrap"><button class="btn btn-ghost btn-icon" data-menu-toggle>⋯</button><div class="card-menu" data-menu><button data-act="download">Download data</button><button data-act="edit">Edit</button><button data-act="delete">Delete</button></div></div></div><div class="chart-body" data-body></div>';
+  var editItems = canEdit() ? '<button data-act="edit">Edit</button><button data-act="delete">Delete</button>' : '';
+  el.innerHTML = '<div class="card-head"><h3>'+esc(card.title)+'</h3><div class="card-menu-wrap"><button class="btn btn-ghost btn-icon" data-menu-toggle>⋯</button><div class="card-menu" data-menu><button data-act="download">Download data</button>'+editItems+'</div></div></div><div class="chart-body" data-body></div>';
   container.appendChild(el);
   var menuToggle = el.querySelector('[data-menu-toggle]');
   var menu = el.querySelector('[data-menu]');
   menuToggle.onclick = function(ev){ ev.stopPropagation(); closeAllMenus(); menu.classList.add('open'); };
   el.querySelector('[data-act=download]').onclick = function(){ downloadCardData(card); menu.classList.remove('open'); };
-  el.querySelector('[data-act=edit]').onclick = function(){ openChartConfigModal(card.dashboardId, card); menu.classList.remove('open'); };
-  el.querySelector('[data-act=delete]').onclick = function(){ deleteCardConfirm(card); menu.classList.remove('open'); };
+  var editBtn = el.querySelector('[data-act=edit]');
+  if(editBtn) editBtn.onclick = function(){ openChartConfigModal(card.dashboardId, card); menu.classList.remove('open'); };
+  var delBtn = el.querySelector('[data-act=delete]');
+  if(delBtn) delBtn.onclick = function(){ deleteCardConfirm(card); menu.classList.remove('open'); };
   var body = el.querySelector('[data-body]');
   if(!ds){ body.innerHTML = '<div style="color:var(--ink-faint);font-size:12.5px;">Source dataset was deleted.</div>'; return; }
   var rows = Store.getRows(card.datasetId);
@@ -877,7 +1069,8 @@ async function buildXrayDashboard(datasetId){
     var c = toAdd[i]; c.dashboardId = dashId; c.datasetId = datasetId;
     var cid = await Store.saveCard(c);
     c.id = cid; Store.cards[cid] = c;
-    Store.dashboards[dashId].cardIds.push(cid);
+    // Note: Store.saveCard() already appends cid to the dashboard's cardIds
+    // (locally and in Supabase) — pushing it again here was the bug.
   }
   state.view='dashboard'; state.currentDashboardId=dashId;
   renderAll();
@@ -1032,6 +1225,93 @@ function newDashboardFlow(){
   Store.saveDashboard(name.trim()).then(function(id){ openDashboard(id); });
 }
 
+/* ================= TEAM MANAGEMENT ================= */
+function openTeamModal(){
+  var html = '<div class="modal-head"><h3>Manage team</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body" id="team-body"><div style="color:var(--ink-faint);font-size:13px;">Loading…</div></div><div class="modal-foot"><span style="font-size:12px;color:var(--ink-faint);">Only editors can change roles.</span><span></span></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    loadTeamList();
+  });
+}
+async function loadTeamList(){
+  var body = document.getElementById('team-body');
+  if(!body || !sb) return;
+  try{
+    var res = await sb.from('profiles').select('*').order('created_at', {ascending:true});
+    if(res.error) throw res.error;
+    var rows = res.data || [];
+    body.innerHTML = rows.map(function(p){
+      var isMe = Auth.user && p.id===Auth.user.id;
+      return '<div class="team-row"><div class="who">'+esc(p.full_name||p.email||'Unknown')+(isMe?' (you)':'')+'<span class="email">'+esc(p.email||'')+'</span></div>'+
+        '<select data-role-for="'+p.id+'" '+(isMe?'disabled':'')+' style="width:auto;min-height:32px;padding:4px 24px 4px 8px;font-size:12.5px;">'+
+        '<option value="viewer"'+(p.role==='viewer'?' selected':'')+'>Viewer</option>'+
+        '<option value="editor"'+(p.role==='editor'?' selected':'')+'>Editor</option>'+
+        '</select></div>';
+    }).join('') || '<div style="color:var(--ink-faint);font-size:13px;">No team members yet.</div>';
+    Array.prototype.forEach.call(body.querySelectorAll('[data-role-for]'), function(sel){
+      sel.onchange = async function(){
+        var uid2 = sel.getAttribute('data-role-for');
+        try{
+          var r = await sb.from('profiles').update({role:sel.value}).eq('id', uid2);
+          if(r.error) throw r.error;
+          toast('Role updated.');
+        }catch(e){ toast('Could not update role.', true); }
+      };
+    });
+  }catch(e){ body.innerHTML = '<div style="color:var(--danger);font-size:13px;">Could not load the team list.</div>'; }
+}
+
+/* ================= LOGIN SCREEN ================= */
+var loginMode = 'signin';
+function setLoginMode(mode){
+  loginMode = mode;
+  document.getElementById('login-title').textContent = mode==='signin' ? 'Sign in' : 'Create your account';
+  document.getElementById('login-sub').textContent = mode==='signin' ? 'Use your team account to continue.' : 'The first person to sign up becomes an editor automatically.';
+  document.getElementById('login-name-field').style.display = mode==='signup' ? '' : 'none';
+  document.getElementById('login-submit').textContent = mode==='signin' ? 'Sign in' : 'Sign up';
+  document.getElementById('login-toggle-text').textContent = mode==='signin' ? "Don't have an account?" : 'Already have an account?';
+  document.getElementById('login-toggle').textContent = mode==='signin' ? 'Sign up' : 'Sign in';
+  document.getElementById('login-note').textContent = '';
+}
+function wireLoginScreen(){
+  document.getElementById('login-toggle').onclick = function(){ setLoginMode(loginMode==='signin' ? 'signup' : 'signin'); };
+  document.getElementById('login-submit').onclick = async function(){
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    var name = document.getElementById('login-name').value.trim();
+    var note = document.getElementById('login-note');
+    var btn = document.getElementById('login-submit');
+    if(!email || !password){ note.textContent = 'Enter an email and password.'; note.className='ask-note err'; return; }
+    btn.disabled = true; note.className='ask-note'; note.textContent = 'Working…';
+    try{
+      if(loginMode==='signup'){
+        await Auth.signUp(email, password, name);
+        note.textContent = 'Account created. If email confirmation is on for your project, check your inbox — otherwise you can sign in now.';
+        note.className = 'ask-note';
+        setLoginMode('signin');
+        btn.disabled = false;
+      } else {
+        await Auth.signIn(email, password);
+        location.reload();
+      }
+    }catch(e){
+      note.className = 'ask-note err';
+      note.textContent = (e && e.message) || 'Something went wrong.';
+      btn.disabled = false;
+    }
+  };
+}
+function showLoginScreen(){
+  document.getElementById('login-screen').classList.add('show');
+  document.getElementById('app').style.display = 'none';
+  wireLoginScreen();
+  setLoginMode('signin');
+}
+function hideLoginScreen(){
+  document.getElementById('login-screen').classList.remove('show');
+  document.getElementById('app').style.display = '';
+}
+
 /* ================= WIRING ================= */
 document.getElementById('btn-add-data').onclick = openUploadModal;
 document.getElementById('btn-add-dashboard').onclick = newDashboardFlow;
@@ -1044,10 +1324,21 @@ document.getElementById('btn-theme').onclick = function(){
   Object.keys(chartInstances).forEach(function(id){ destroyChart(id); });
   renderAll();
 };
+document.getElementById('btn-sign-out').onclick = function(){ Auth.signOut(); };
+document.getElementById('btn-manage-team').onclick = openTeamModal;
 
 /* ================= BOOT ================= */
-showSetupBanner();
-Store.init().then(function(){ renderAll(); });
+async function boot(){
+  showSetupBanner();
+  if(sb){
+    await Auth.init();
+    if(!Auth.user){ showLoginScreen(); return; }
+  }
+  hideLoginScreen();
+  await Store.init();
+  renderAll();
+}
+boot();
 })();
 </script>
 </body>
