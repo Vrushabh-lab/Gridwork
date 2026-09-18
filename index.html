@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gridwork — dashboards from any data</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --bg:#EDEEE9; --surface:#FFFFFF; --surface-2:#E4E5DE; --surface-3:#DBDCD3;
+  --ink:#14171C; --ink-soft:#4B505A; --ink-faint:#767C86;
+  --border:rgba(20,23,28,0.14); --grid-line:rgba(20,23,28,0.07);
+  --brass:#9C6B1E; --brass-strong:#7E5717; --brass-ink:#14171C;
+  --teal:#1F5C56; --coral:#A5402F;
+  --danger:#A5402F; --danger-bg:rgba(165,64,47,0.1);
+  --ok:#3C7A5B; --warn:#9C6B1E; --warn-bg:rgba(156,107,30,0.1);
+  --radius-card:10px; --radius-control:6px; --radius-pill:999px;
+  --font-display:'Fraunces',Georgia,'Times New Roman',serif;
+  --font-body:'IBM Plex Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  --font-mono:'IBM Plex Mono',SFMono-Regular,Consolas,'Liberation Mono',monospace;
+  --shadow-pop:0 8px 24px rgba(20,23,28,0.16);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181D; --surface:#1C2028; --surface-2:#232732; --surface-3:#2B303B;
+    --ink:#ECEDE8; --ink-soft:#AFB4BD; --ink-faint:#7C8390;
+    --border:rgba(236,237,232,0.14); --grid-line:rgba(236,237,232,0.08);
+    --brass:#D9A54A; --brass-strong:#E7BC70; --brass-ink:#14171C;
+    --teal:#4FA69B; --coral:#D9695A;
+    --danger:#D9695A; --danger-bg:rgba(217,105,90,0.14);
+    --ok:#5FBF8F; --warn:#D9A54A; --warn-bg:rgba(217,165,74,0.14);
+    --shadow-pop:0 8px 28px rgba(0,0,0,0.45);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15181D; --surface:#1C2028; --surface-2:#232732; --surface-3:#2B303B;
+  --ink:#ECEDE8; --ink-soft:#AFB4BD; --ink-faint:#7C8390;
+  --border:rgba(236,237,232,0.14); --grid-line:rgba(236,237,232,0.08);
+  --brass:#D9A54A; --brass-strong:#E7BC70; --brass-ink:#14171C;
+  --teal:#4FA69B; --coral:#D9695A;
+  --danger:#D9695A; --danger-bg:rgba(217,105,90,0.14);
+  --ok:#5FBF8F; --warn:#D9A54A; --warn-bg:rgba(217,165,74,0.14);
+  --shadow-pop:0 8px 28px rgba(0,0,0,0.45);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:14.5px; line-height:1.5; -webkit-font-smoothing:antialiased;}
+@media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
+a{color:inherit;}
+button{font-family:inherit;}
+::selection{background:var(--brass); color:var(--brass-ink);}
+h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spacing:-0.01em;}
+.num, .mono{font-family:var(--font-mono);}
+
+#setup-banner{display:none; background:var(--warn-bg); color:var(--ink); border-bottom:1px solid var(--border); padding:10px 18px; font-size:13px; align-items:center; gap:10px; flex-wrap:wrap;}
+#setup-banner.show{display:flex;}
+#setup-banner strong{color:var(--warn-strong,var(--brass-strong));}
+#setup-banner code{background:var(--surface); padding:1px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px;}
+
+#app{display:flex; min-height:100vh; min-height:100dvh;}
+#sidebar{width:248px; flex:none; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; height:100vh; height:100dvh; position:sticky; top:0; transition:transform .22s ease;}
+.brand{padding:20px 18px 14px; border-bottom:1px solid var(--border);}
+.brand-mark{display:flex; align-items:baseline; gap:8px;}
+.brand-mark .glyph{width:9px;height:9px;background:var(--brass);display:inline-block;transform:rotate(45deg); flex:none;}
+.brand h1{font-size:20px;}
+.brand p{margin:4px 0 0; color:var(--ink-faint); font-size:12px;}
+.nav-section{padding:14px 12px 6px;}
+.nav-section-head{display:flex; align-items:center; justify-content:space-between; padding:2px 6px 8px; color:var(--ink-faint); font-size:12px;}
+.nav-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px;}
+.nav-item{display:flex; align-items:center; gap:9px; width:100%; text-align:left; padding:8px 9px; border-radius:var(--radius-control); border:none; background:transparent; color:var(--ink-soft); cursor:pointer; font-size:13.5px; min-height:38px;}
+.nav-item:hover{background:var(--surface-2); color:var(--ink);}
+.nav-item.active{background:var(--surface-2); color:var(--ink); font-weight:600;}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-faint); flex:none;}
+.nav-item.active .dot{background:var(--brass);}
+.nav-item .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;}
+.nav-item .count{color:var(--ink-faint); font-size:11.5px; font-family:var(--font-mono);}
+.nav-add{margin:6px 3px 0; padding:8px 9px; border-radius:var(--radius-control); border:1px dashed var(--border); background:transparent; color:var(--ink-soft); cursor:pointer; font-size:13px; text-align:left; min-height:38px;}
+.nav-add:hover{border-color:var(--brass); color:var(--brass);}
+#sidebar-foot{margin-top:auto; padding:12px 16px 16px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.sync-state{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-faint);}
+.sync-state .led{width:6px;height:6px;border-radius:50%; flex:none;}
+.led.on{background:var(--ok);} .led.off{background:var(--warn);}
+.theme-btn{border:1px solid var(--border); background:var(--surface); color:var(--ink-soft); border-radius:var(--radius-control); padding:6px 9px; cursor:pointer; font-size:12px;}
+#scrim{display:none; position:fixed; inset:0; background:rgba(10,11,13,0.4); z-index:30;}
+#main{flex:1; min-width:0; display:flex; flex-direction:column;}
+#topbar{display:flex; align-items:center; gap:12px; padding:14px 22px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:5; flex-wrap:wrap;}
+#hamburger{display:none; border:1px solid var(--border); background:var(--surface); border-radius:var(--radius-control); width:38px; height:38px; cursor:pointer; flex:none; color:var(--ink);}
+#topbar h2{font-size:19px; flex:none;}
+#topbar .sub{color:var(--ink-faint); font-size:12.5px;}
+.topbar-spacer{flex:1;}
+.topbar-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+#canvas{flex:1; padding:22px; overflow:auto; background-image:linear-gradient(var(--grid-line) 1px, transparent 1px),linear-gradient(90deg, var(--grid-line) 1px, transparent 1px); background-size:28px 28px;}
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:7px; border-radius:var(--radius-control); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:13px; font-weight:500; padding:9px 14px; cursor:pointer; min-height:38px; white-space:nowrap;}
+.btn:hover{border-color:var(--ink-faint);}
+.btn:disabled{opacity:.5; cursor:default;}
+.btn-primary{background:var(--brass); border-color:var(--brass); color:var(--brass-ink); font-weight:600;}
+.btn-primary:hover{background:var(--brass-strong); border-color:var(--brass-strong);}
+.btn-ghost{background:transparent; border-color:transparent; color:var(--ink-soft);}
+.btn-ghost:hover{background:var(--surface-2); color:var(--ink);}
+.btn-danger{color:var(--danger); border-color:var(--border);}
+.btn-danger:hover{background:var(--danger-bg); border-color:var(--danger);}
+.btn-sm{padding:6px 10px; min-height:32px; font-size:12.5px;}
+.btn-icon{padding:8px; width:38px;}
+input[type=text], input[type=number], input[type=search], textarea, select{font-family:inherit; font-size:13.5px; color:var(--ink); background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-control); padding:9px 11px; min-height:38px; width:100%;}
+textarea{min-height:120px; font-family:var(--font-mono); font-size:12.5px; resize:vertical;}
+label{display:block; font-size:12px; color:var(--ink-soft); margin:0 0 5px; font-weight:500;}
+.field{margin-bottom:14px;}
+.field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+select{appearance:none; background-image:linear-gradient(45deg, transparent 50%, var(--ink-faint) 50%),linear-gradient(135deg, var(--ink-faint) 50%, transparent 50%); background-position:calc(100% - 16px) center, calc(100% - 11px) center; background-size:5px 5px, 5px 5px; background-repeat:no-repeat; padding-right:30px;}
+.tag{display:inline-flex; align-items:center; padding:2px 9px; border-radius:var(--radius-pill); font-size:11px; font-family:var(--font-mono); border:1px solid var(--border); color:var(--ink-soft);}
+.tag.t-number{color:var(--teal); border-color:var(--teal);}
+.tag.t-date{color:var(--brass-strong); border-color:var(--brass);}
+.tag.t-string{color:var(--ink-faint);}
+.tabs{display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:16px;}
+.tab{padding:9px 4px; margin-right:18px; background:none; border:none; border-bottom:2px solid transparent; color:var(--ink-faint); font-size:13.5px; cursor:pointer; font-weight:500;}
+.tab.active{color:var(--ink); border-color:var(--brass);}
+.dash-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:16px; align-items:start;}
+.chart-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:16px; display:flex; flex-direction:column; min-height:280px;}
+.chart-card.card-kpi{min-height:150px; justify-content:center;}
+.chart-card.card-table{min-height:auto;}
+.card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:10px;}
+.card-head h3{font-size:14.5px; font-weight:600; font-family:var(--font-body);}
+.card-menu-wrap{position:relative;}
+.card-menu{position:absolute; right:0; top:32px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-control); box-shadow:var(--shadow-pop); min-width:150px; z-index:8; overflow:hidden; display:none;}
+.card-menu.open{display:block;}
+.card-menu button{display:block; width:100%; text-align:left; padding:9px 12px; background:none; border:none; font-size:13px; color:var(--ink); cursor:pointer;}
+.card-menu button:hover{background:var(--surface-2);}
+.chart-body{flex:1; min-height:0; position:relative;}
+.kpi-value{font-family:var(--font-display); font-size:40px; font-weight:600; line-height:1;}
+.kpi-label{color:var(--ink-faint); font-size:12.5px; margin-top:6px;}
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius-control);}
+table.data-table{border-collapse:collapse; width:100%; font-size:12.5px;}
+table.data-table th{position:sticky; top:0; background:var(--surface-2); text-align:left; padding:8px 10px; font-weight:600; border-bottom:1px solid var(--border); white-space:nowrap;}
+table.data-table td{padding:7px 10px; border-bottom:1px solid var(--grid-line); font-family:var(--font-mono); white-space:nowrap;}
+table.data-table tr:last-child td{border-bottom:none;}
+.hero{max-width:640px; margin:6vh auto; text-align:left;}
+.hero .kicker{color:var(--brass-strong); font-family:var(--font-mono); font-size:12.5px; margin-bottom:10px;}
+.hero h2{font-size:38px; line-height:1.08; margin-bottom:14px;}
+.hero p{color:var(--ink-soft); font-size:15px; max-width:52ch; margin-bottom:22px;}
+.hero-actions{display:flex; gap:10px; flex-wrap:wrap;}
+.empty-block{border:1px dashed var(--border); border-radius:var(--radius-card); padding:40px 24px; text-align:center; color:var(--ink-faint);}
+.modal-backdrop{position:fixed; inset:0; background:rgba(10,11,13,0.46); display:none; align-items:flex-start; justify-content:center; z-index:40; padding:5vh 16px 5vh;}
+.modal-backdrop.open{display:flex;}
+.modal{background:var(--surface); border-radius:var(--radius-card); border:1px solid var(--border); width:100%; max-width:620px; max-height:90vh; display:flex; flex-direction:column; box-shadow:var(--shadow-pop);}
+.modal-head{display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex:none;}
+.modal-head h3{font-size:17px;}
+.modal-body{padding:20px; overflow:auto;}
+.modal-foot{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 20px; border-top:1px solid var(--border); flex:none;}
+.preview-wrap{margin-top:14px;}
+.preview-note{font-size:12px; color:var(--ink-faint); margin-bottom:8px;}
+.grid-toolbar{display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;}
+table.manual-grid{border-collapse:collapse; width:100%;}
+table.manual-grid input{border:none; border-radius:0; min-height:34px; font-size:12.5px; padding:6px 8px; background:transparent;}
+table.manual-grid th, table.manual-grid td{border:1px solid var(--border); padding:0;}
+table.manual-grid th input{font-weight:600; background:var(--surface-2);}
+.row-x{width:30px; text-align:center; color:var(--ink-faint); cursor:pointer; font-size:14px;}
+.ask-bar{display:flex; gap:8px; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-pill); padding:6px 6px 6px 14px; flex:1; min-width:260px; max-width:640px;}
+.ask-bar .spark{color:var(--brass); flex:none; font-size:15px;}
+.ask-bar input{border:none; min-height:30px; padding:4px 0; background:transparent;}
+.ask-bar select{border:none; background:transparent; min-height:30px; width:auto; max-width:130px; font-size:12px; padding-right:22px; color:var(--ink-faint);}
+.ask-bar .btn{border-radius:var(--radius-pill);}
+.ask-note{font-size:12px; color:var(--ink-faint); margin-top:6px;}
+.ask-note.err{color:var(--danger);}
+#toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:var(--radius-control); font-size:13px; z-index:60; opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+@media (max-width:860px){
+  #sidebar{position:fixed; left:0; top:0; bottom:0; z-index:35; transform:translateX(-100%); box-shadow:var(--shadow-pop);}
+  #sidebar.open{transform:translateX(0);}
+  #hamburger{display:inline-flex; align-items:center; justify-content:center;}
+  #scrim.open{display:block;}
+  #canvas{padding:16px;}
+  #topbar{padding:12px 14px;}
+  .hero h2{font-size:28px;}
+  .field-row{grid-template-columns:1fr;}
+  .ask-bar{max-width:none; width:100%;}
+}
+</style>
+</head>
+<body>
+<div id="setup-banner"><span id="setup-banner-text"></span></div>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><span class="glyph"></span><h1>Gridwork</h1></div>
+      <p>Dashboards from any data.</p>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-head"><span>Datasets</span></div>
+      <ul class="nav-list" id="nav-datasets"></ul>
+      <button class="nav-add" id="btn-add-data">+ Add data</button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-head"><span>Dashboards</span></div>
+      <ul class="nav-list" id="nav-dashboards"></ul>
+      <button class="nav-add" id="btn-add-dashboard">+ New dashboard</button>
+    </div>
+    <div id="sidebar-foot">
+      <div class="sync-state" id="sync-state"><span class="led off"></span><span>Starting…</span></div>
+      <button class="theme-btn" id="btn-theme">Theme</button>
+    </div>
+  </aside>
+  <div id="scrim"></div>
+  <main id="main">
+    <div id="topbar">
+      <button id="hamburger" aria-label="Open menu">☰</button>
+      <div><h2 id="topbar-title">Gridwork</h2><div class="sub" id="topbar-sub"></div></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+    <div id="canvas"></div>
+  </main>
+</div>
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+   CONFIG — fill these in with your own Supabase project details.
+   Get them from: Supabase dashboard → your project → Settings → API
+   ===================================================================== */
+var SUPABASE_URL = "https://bfuovfgxiljnvyfyvyil.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_2pQG_QKhH6BTN2kjB80B1Q_WDt1EjEp";
+/* ===================================================================== */
+</script>
+
+<script>
+(function(){
+"use strict";
+
+var CONFIGURED = SUPABASE_URL.indexOf('YOUR_')!==0 && SUPABASE_ANON_KEY.indexOf('YOUR_')!==0 && SUPABASE_URL.length>10;
+var sb = null;
+if(CONFIGURED && window.supabase){
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+/* ================= CONSTANTS ================= */
+var MAX_ROWS = 20000;
+var AGGS = [["sum","Sum"],["avg","Average"],["count","Count"],["min","Minimum"],["max","Maximum"]];
+var CHART_TYPES = [["bar","Bar"],["line","Line"],["pie","Pie"],["scatter","Scatter"],["kpi","Big number"],["table","Table"]];
+
+function uid(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+}
+function esc(s){
+  s = (s===undefined||s===null) ? '' : String(s);
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function toast(msg, isErr){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isErr ? 'var(--danger)' : 'var(--ink)';
+  t.style.color = isErr ? '#fff' : 'var(--bg)';
+  t.classList.add('show');
+  clearTimeout(toast._h);
+  toast._h = setTimeout(function(){ t.classList.remove('show'); }, 3200);
+}
+function isDark(){
+  var explicit = document.documentElement.getAttribute('data-theme');
+  if(explicit==='dark') return true;
+  if(explicit==='light') return false;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function palette(){
+  return isDark()
+    ? ['#D9A54A','#4FA69B','#D9695A','#8CA0C9','#A9C17A','#C79BCB','#7FB6D1','#E0B978']
+    : ['#9C6B1E','#1F5C56','#A5402F','#5B6E8C','#5F7A3D','#8E5B8F','#3E7896','#8A6B22'];
+}
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+/* ================= SETUP BANNER ================= */
+function showSetupBanner(){
+  var b = document.getElementById('setup-banner');
+  var t = document.getElementById('setup-banner-text');
+  if(!CONFIGURED){
+    t.innerHTML = '<strong>Almost there —</strong> add your Supabase URL and key at the top of index.html to enable cross-device sync. Running in local-only mode for now.';
+    b.classList.add('show');
+  }
+}
+
+/* ================= TYPE DETECTION ================= */
+function detectType(values){
+  var num=0, date=0, total=0;
+  for(var i=0;i<values.length;i++){
+    var v = values[i];
+    if(v===undefined||v===null||v==='') continue;
+    total++;
+    var n = typeof v==='number' ? v : parseFloat(v);
+    if(!isNaN(n) && isFinite(n) && String(v).trim()!=='' && /^-?[\d.,]+%?$/.test(String(v).trim())){ num++; continue; }
+    var d = Date.parse(v);
+    if(!isNaN(d) && isNaN(n) && /[-\/]/.test(String(v))) { date++; }
+  }
+  if(total===0) return 'string';
+  if(num/total > 0.75) return 'number';
+  if(date/total > 0.75) return 'date';
+  return 'string';
+}
+function inferColumns(rows, headers){
+  return headers.map(function(h){
+    var vals = rows.slice(0,300).map(function(r){ return r[h]; });
+    return {name:h, type:detectType(vals)};
+  });
+}
+function coerceNumber(v){
+  if(v===undefined||v===null||v==='') return NaN;
+  if(typeof v==='number') return v;
+  var n = parseFloat(String(v).replace(/,/g,''));
+  return n;
+}
+function monthBin(v){
+  var d = new Date(v);
+  if(isNaN(d)) return String(v);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+
+/* ================= STORE (Supabase, localStorage fallback) ================= */
+var Store = {
+  mode: 'local',
+  datasets: {}, dashboards: {}, cards: {},
+  local: {datasets:{}, dashboards:{}, cards:{}},
+
+  loadLocal: function(){
+    try{ var raw = localStorage.getItem('gridwork-store'); if(raw){ this.local = JSON.parse(raw); } }catch(e){}
+    if(!this.local.datasets) this.local.datasets = {};
+    if(!this.local.dashboards) this.local.dashboards = {};
+    if(!this.local.cards) this.local.cards = {};
+  },
+  saveLocal: function(){ try{ localStorage.setItem('gridwork-store', JSON.stringify(this.local)); }catch(e){} },
+
+  init: async function(){
+    this.loadLocal();
+    if(sb){
+      this.mode = 'db';
+      await this.refreshAll();
+      this.subscribeAll();
+    } else {
+      this.mode = 'local';
+      this.datasets = this.local.datasets;
+      this.dashboards = this.local.dashboards;
+      this.cards = this.local.cards;
+    }
+    updateSyncBadge();
+  },
+
+  refreshAll: async function(){
+    if(!sb) return;
+    try{
+      var dsRes = await sb.from('datasets').select('*').order('created_at', {ascending:false});
+      var dashRes = await sb.from('dashboards').select('*').order('created_at', {ascending:false});
+      var cardRes = await sb.from('cards').select('*');
+      var next = {};
+      (dsRes.data||[]).forEach(function(r){ next[r.id] = {id:r.id, name:r.name, columns:r.columns||[], rows:r.rows||[], rowCount:r.row_count||0, truncated:r.truncated, createdAt:new Date(r.created_at).getTime()}; });
+      this.datasets = next;
+      var nextDash = {};
+      (dashRes.data||[]).forEach(function(r){ nextDash[r.id] = {id:r.id, name:r.name, cardIds:r.card_ids||[], createdAt:new Date(r.created_at).getTime()}; });
+      this.dashboards = nextDash;
+      var nextCards = {};
+      (cardRes.data||[]).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg}; });
+      this.cards = nextCards;
+    }catch(e){ toast('Could not load data from Supabase — check your setup.', true); }
+  },
+  subscribeAll: function(){
+    var self = this;
+    ['datasets','dashboards','cards'].forEach(function(table){
+      sb.channel(table+'-changes').on('postgres_changes', {event:'*', schema:'public', table:table}, function(){
+        self.refreshAll().then(renderAll);
+      }).subscribe();
+    });
+  },
+  getRows: function(datasetId){
+    var ds = this.datasets[datasetId];
+    return ds ? (ds.rows||[]) : [];
+  },
+
+  saveDataset: async function(name, columns, rows){
+    var truncated = rows.length > MAX_ROWS;
+    if(truncated) rows = rows.slice(0, MAX_ROWS);
+    if(this.mode==='db'){
+      var res = await sb.from('datasets').insert({name:name, columns:columns, rows:rows, row_count:rows.length, truncated:truncated}).select().single();
+      if(res.error) throw res.error;
+      var id = res.data.id;
+      this.datasets[id] = {id:id, name:name, columns:columns, rows:rows, rowCount:rows.length, truncated:truncated, createdAt:Date.now()};
+      return id;
+    } else {
+      var id2 = uid();
+      this.local.datasets[id2] = {id:id2, name:name, columns:columns, rows:rows, rowCount:rows.length, truncated:truncated, createdAt:Date.now()};
+      this.datasets = this.local.datasets;
+      this.saveLocal();
+      return id2;
+    }
+  },
+  deleteDataset: async function(id){
+    if(this.mode==='db'){
+      try{ await sb.from('datasets').delete().eq('id', id); }catch(e){ toast('Could not delete dataset.', true); }
+    } else { delete this.local.datasets[id]; this.saveLocal(); }
+  },
+  saveDashboard: async function(name, id){
+    if(this.mode==='db'){
+      if(id){
+        await sb.from('dashboards').update({name:name}).eq('id', id);
+        return id;
+      }
+      var res = await sb.from('dashboards').insert({name:name, card_ids:[]}).select().single();
+      if(res.error) throw res.error;
+      this.dashboards[res.data.id] = {id:res.data.id, name:name, cardIds:[], createdAt:Date.now()};
+      return res.data.id;
+    } else {
+      id = id || uid();
+      var existing = this.local.dashboards[id];
+      this.local.dashboards[id] = {id:id, name:name, cardIds: existing?existing.cardIds:[], createdAt: existing?existing.createdAt:Date.now()};
+      this.dashboards = this.local.dashboards;
+      this.saveLocal();
+      return id;
+    }
+  },
+  deleteDashboard: async function(id){
+    var cardIds = (this.dashboards[id] && this.dashboards[id].cardIds) || [];
+    for(var i=0;i<cardIds.length;i++){ await this.deleteCard(cardIds[i], id, false); }
+    if(this.mode==='db'){ try{ await sb.from('dashboards').delete().eq('id', id); }catch(e){} }
+    else { delete this.local.dashboards[id]; this.saveLocal(); }
+  },
+  saveCard: async function(card){
+    if(this.mode==='db'){
+      var payload = {dashboard_id:card.dashboardId, dataset_id:card.datasetId, type:card.type, title:card.title, x_field:card.xField, y_field:card.yField, agg:card.agg};
+      var id;
+      if(card.id){
+        await sb.from('cards').update(payload).eq('id', card.id);
+        id = card.id;
+      } else {
+        var res = await sb.from('cards').insert(payload).select().single();
+        if(res.error) throw res.error;
+        id = res.data.id;
+      }
+      this.cards[id] = Object.assign({}, card, {id:id});
+      var dash = this.dashboards[card.dashboardId];
+      var ids = dash ? (dash.cardIds||[]).slice() : [];
+      if(ids.indexOf(id)===-1){
+        ids.push(id);
+        await sb.from('dashboards').update({card_ids:ids}).eq('id', card.dashboardId);
+        if(this.dashboards[card.dashboardId]) this.dashboards[card.dashboardId].cardIds = ids;
+      }
+      return id;
+    } else {
+      card.id = card.id || uid();
+      this.local.cards[card.id] = card;
+      this.cards = this.local.cards;
+      var dash2 = this.local.dashboards[card.dashboardId];
+      if(dash2){
+        var ids2 = (dash2.cardIds||[]).slice();
+        if(ids2.indexOf(card.id)===-1){ ids2.push(card.id); dash2.cardIds = ids2; }
+      }
+      this.saveLocal();
+      return card.id;
+    }
+  },
+  deleteCard: async function(cardId, dashboardId, updateDash){
+    if(updateDash===undefined) updateDash = true;
+    if(this.mode==='db'){ try{ await sb.from('cards').delete().eq('id', cardId); }catch(e){} }
+    else { delete this.local.cards[cardId]; this.saveLocal(); }
+    if(updateDash){
+      var dash = this.dashboards[dashboardId];
+      if(dash){
+        var ids = (dash.cardIds||[]).filter(function(x){ return x!==cardId; });
+        if(this.mode==='db'){ try{ await sb.from('dashboards').update({card_ids:ids}).eq('id', dashboardId); }catch(e){} }
+        else { this.local.dashboards[dashboardId].cardIds = ids; this.saveLocal(); }
+      }
+    }
+  }
+};
+
+/* ================= AGGREGATION ================= */
+function aggregate(rows, xField, yField, xType, agg){
+  var groups = {}; var order = [];
+  rows.forEach(function(r){
+    var key = r[xField];
+    if(key===undefined||key===null||key==='') key='(empty)';
+    if(xType==='date') key = monthBin(key);
+    if(!(key in groups)){ groups[key]=[]; order.push(key); }
+    groups[key].push(r[yField]);
+  });
+  var labels = order.slice();
+  labels.sort(function(a,b){
+    var na = parseFloat(a), nb = parseFloat(b);
+    if(!isNaN(na) && !isNaN(nb)) return na-nb;
+    return String(a).localeCompare(String(b));
+  });
+  var data = labels.map(function(l){
+    var raw = groups[l];
+    if(agg==='count') return raw.length;
+    var nums = raw.map(coerceNumber).filter(function(n){ return !isNaN(n); });
+    if(nums.length===0) return 0;
+    if(agg==='sum') return nums.reduce(function(a,b){return a+b;},0);
+    if(agg==='avg') return nums.reduce(function(a,b){return a+b;},0)/nums.length;
+    if(agg==='min') return Math.min.apply(null,nums);
+    if(agg==='max') return Math.max.apply(null,nums);
+    return nums.reduce(function(a,b){return a+b;},0);
+  });
+  return {labels:labels, data:data};
+}
+function singleAgg(rows, yField, agg){
+  if(agg==='count') return rows.length;
+  var nums = rows.map(function(r){ return coerceNumber(r[yField]); }).filter(function(n){ return !isNaN(n); });
+  if(nums.length===0) return 0;
+  if(agg==='sum') return nums.reduce(function(a,b){return a+b;},0);
+  if(agg==='avg') return nums.reduce(function(a,b){return a+b;},0)/nums.length;
+  if(agg==='min') return Math.min.apply(null,nums);
+  if(agg==='max') return Math.max.apply(null,nums);
+  return nums.reduce(function(a,b){return a+b;},0);
+}
+function fmtNum(n){
+  if(typeof n!=='number' || isNaN(n)) return String(n);
+  if(Math.abs(n) >= 1000) return n.toLocaleString(undefined,{maximumFractionDigits:1});
+  return (Math.round(n*100)/100).toString();
+}
+
+/* ================= CHART RENDERING ================= */
+var chartInstances = {};
+function destroyChart(cardId){ if(chartInstances[cardId]){ chartInstances[cardId].destroy(); delete chartInstances[cardId]; } }
+function renderChartInto(canvas, card, rows, columns){
+  var colType = {}; columns.forEach(function(c){ colType[c.name]=c.type; });
+  var pal = palette();
+  var gridColor = cssVar('--grid-line') || 'rgba(0,0,0,0.07)';
+  var textColor = cssVar('--ink-soft') || '#666';
+
+  if(card.type==='pie'){
+    var agg1 = aggregate(rows, card.xField, card.yField, colType[card.xField], card.agg||'sum');
+    var top = agg1.labels.map(function(l,i){ return {l:l, v:agg1.data[i]}; }).sort(function(a,b){return b.v-a.v;}).slice(0,8);
+    chartInstances[card.id] = new Chart(canvas, {type:'pie', data:{labels:top.map(function(t){return t.l;}), datasets:[{data:top.map(function(t){return t.v;}), backgroundColor:pal, borderColor:cssVar('--surface')||'#fff', borderWidth:2}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{color:textColor, boxWidth:10, font:{family:"IBM Plex Sans", size:11}}}}}});
+  } else if(card.type==='scatter'){
+    var pts = rows.slice(0,1200).map(function(r){ return {x:coerceNumber(r[card.xField]), y:coerceNumber(r[card.yField])}; }).filter(function(p){ return !isNaN(p.x)&&!isNaN(p.y); });
+    chartInstances[card.id] = new Chart(canvas, {type:'scatter', data:{datasets:[{label:card.title, data:pts, backgroundColor:pal[0]}]}, options:{responsive:true, maintainAspectRatio:false, scales:{x:{title:{display:true,text:card.xField,color:textColor,font:{family:"IBM Plex Sans"}},ticks:{color:textColor},grid:{color:gridColor}}, y:{title:{display:true,text:card.yField,color:textColor,font:{family:"IBM Plex Sans"}},ticks:{color:textColor},grid:{color:gridColor}}}, plugins:{legend:{display:false}}}});
+  } else {
+    var agg2 = aggregate(rows, card.xField, card.yField, colType[card.xField], card.agg||'sum');
+    var labels = agg2.labels, data = agg2.data;
+    if(labels.length > 30){ labels = labels.slice(0,30); data = data.slice(0,30); }
+    chartInstances[card.id] = new Chart(canvas, {type: card.type, data:{labels:labels, datasets:[{label:card.title, data:data, backgroundColor: card.type==='bar'? pal[0] : 'transparent', borderColor:pal[0], borderWidth:2, tension:0.25, fill:false, pointRadius: card.type==='line'?2:0}]}, options:{responsive:true, maintainAspectRatio:false, scales:{x:{ticks:{color:textColor, maxRotation:50, minRotation:0, font:{family:"IBM Plex Mono", size:10.5}}, grid:{color:gridColor}}, y:{ticks:{color:textColor, font:{family:"IBM Plex Mono", size:10.5}}, grid:{color:gridColor}, beginAtZero:true}}, plugins:{legend:{display:false}}}});
+  }
+}
+
+/* ================= DATA PARSING ================= */
+function parseCSVText(text, cb){
+  Papa.parse(text, {header:true, skipEmptyLines:true, dynamicTyping:false, complete:function(res){ cb(res.meta.fields||[], res.data); }, error:function(){ toast('Could not parse that file.', true); }});
+}
+function parsePasted(text, cb){
+  var delim = text.indexOf('\t')>-1 ? '\t' : ',';
+  Papa.parse(text.trim(), {header:true, skipEmptyLines:true, delimiter:delim, complete:function(res){ cb(res.meta.fields||[], res.data); }});
+}
+function parseExcelFile(file, cb){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var wb = XLSX.read(e.target.result, {type:'array'});
+      var sheetName = wb.SheetNames[0];
+      var sheet = wb.Sheets[sheetName];
+      var json = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      var headers = json.length ? Object.keys(json[0]) : [];
+      cb(headers, json, wb.SheetNames);
+    }catch(err){ toast('Could not read that Excel file.', true); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ================= STATE ================= */
+var state = {
+  view:'home', currentDatasetId:null, currentDashboardId:null,
+  uploadTab:'file', uploadHeaders:[], uploadRows:[], uploadCols:[],
+  manualCols:['Column A','Column B'], manualRows:[['',''],['','']],
+  aiUnavailable:false
+};
+
+/* ================= RENDER: SIDEBAR ================= */
+function renderSidebar(){
+  var dsList = document.getElementById('nav-datasets');
+  var dashList = document.getElementById('nav-dashboards');
+  var datasets = Object.values(Store.datasets);
+  var dashboards = Object.values(Store.dashboards);
+  datasets.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+  dashboards.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+
+  dsList.innerHTML = datasets.map(function(d){
+    var active = state.view==='dataset' && state.currentDatasetId===d.id;
+    return '<li><button class="nav-item'+(active?' active':'')+'" data-open-dataset="'+d.id+'"><span class="dot"></span><span class="name">'+esc(d.name)+'</span><span class="count">'+(d.rowCount||0)+'</span></button></li>';
+  }).join('') || '<li style="padding:6px 9px;color:var(--ink-faint);font-size:12.5px;">No datasets yet</li>';
+
+  dashList.innerHTML = dashboards.map(function(d){
+    var active = state.view==='dashboard' && state.currentDashboardId===d.id;
+    return '<li><button class="nav-item'+(active?' active':'')+'" data-open-dashboard="'+d.id+'"><span class="dot"></span><span class="name">'+esc(d.name)+'</span><span class="count">'+((d.cardIds||[]).length)+'</span></button></li>';
+  }).join('') || '<li style="padding:6px 9px;color:var(--ink-faint);font-size:12.5px;">No dashboards yet</li>';
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-open-dataset]'), function(btn){ btn.onclick = function(){ openDataset(btn.getAttribute('data-open-dataset')); closeSidebarMobile(); }; });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-open-dashboard]'), function(btn){ btn.onclick = function(){ openDashboard(btn.getAttribute('data-open-dashboard')); closeSidebarMobile(); }; });
+}
+function updateSyncBadge(){
+  var el = document.getElementById('sync-state');
+  if(Store.mode==='db'){ el.innerHTML = '<span class="led on"></span><span>Synced across devices</span>'; }
+  else { el.innerHTML = '<span class="led off"></span><span>Saved on this device</span>'; }
+}
+function closeSidebarMobile(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
+
+/* ================= RENDER: MAIN VIEWS ================= */
+function renderAll(){
+  renderSidebar();
+  var title = document.getElementById('topbar-title');
+  var sub = document.getElementById('topbar-sub');
+  var actions = document.getElementById('topbar-actions');
+  var canvas = document.getElementById('canvas');
+  actions.innerHTML = ''; sub.textContent = '';
+
+  var hasAnyDataset = Object.keys(Store.datasets).length>0;
+
+  if(state.view==='home' && !hasAnyDataset){
+    title.textContent = 'Gridwork';
+    canvas.innerHTML = '<div class="hero"><div class="kicker">DASHBOARDS · ANY DATA</div><h2>Turn a spreadsheet into<br>a dashboard in a minute.</h2><p>Upload a CSV or Excel file, paste rows straight from a spreadsheet, or type data in by hand. Gridwork detects your columns and builds charts you can share.</p><div class="hero-actions"><button class="btn btn-primary" id="hero-add">+ Add your data</button></div></div>';
+    document.getElementById('hero-add').onclick = openUploadModal;
+    return;
+  }
+  if(state.view==='home' && hasAnyDataset){
+    title.textContent = 'Datasets';
+    sub.textContent = Object.keys(Store.datasets).length+' dataset(s)';
+    actions.appendChild(mkBtn('+ Add data', openUploadModal, 'btn-primary'));
+    renderDatasetsGrid(canvas);
+    return;
+  }
+  if(state.view==='dataset'){ renderDatasetDetail(title, sub, actions, canvas); return; }
+  if(state.view==='dashboard'){ renderDashboardView(title, sub, actions, canvas); return; }
+}
+function mkBtn(label, onClick, cls){
+  var b = document.createElement('button'); b.className = 'btn '+(cls||''); b.textContent = label; b.onclick = onClick; return b;
+}
+function renderDatasetsGrid(canvas){
+  var datasets = Object.values(Store.datasets).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+  canvas.innerHTML = '<div class="dash-grid" id="ds-grid"></div>';
+  var grid = document.getElementById('ds-grid');
+  datasets.forEach(function(d){
+    var card = document.createElement('div'); card.className = 'chart-card'; card.style.cursor = 'pointer';
+    card.innerHTML = '<div class="card-head"><h3>'+esc(d.name)+'</h3></div><div style="color:var(--ink-faint);font-size:12.5px;margin-bottom:10px;">'+(d.rowCount||0)+' rows · '+((d.columns||[]).length)+' columns</div><div style="display:flex;flex-wrap:wrap;gap:5px;">'+(d.columns||[]).slice(0,6).map(function(c){ return '<span class="tag t-'+c.type+'">'+esc(c.name)+'</span>'; }).join('')+'</div>';
+    card.onclick = function(){ openDataset(d.id); };
+    grid.appendChild(card);
+  });
+}
+function renderDatasetDetail(title, sub, actions, canvas){
+  var d = Store.datasets[state.currentDatasetId];
+  if(!d){ state.view='home'; return renderAll(); }
+  title.textContent = d.name;
+  sub.textContent = (d.rowCount||0)+' rows · '+((d.columns||[]).length)+' columns'+(d.truncated?' · trimmed to fit':'');
+  actions.appendChild(mkBtn('Download CSV', function(){ downloadDatasetCSV(d); }, ''));
+  actions.appendChild(mkBtn('Build dashboard', function(){ buildXrayDashboard(d.id); }, 'btn-primary'));
+  actions.appendChild(mkBtn('Delete', function(){ confirmDeleteDataset(d.id); }, 'btn-danger'));
+  var rows = Store.getRows(d.id);
+  var sample = rows.slice(0,50);
+  var cols = d.columns||[];
+  var html = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">'+cols.map(function(c){ return '<span class="tag t-'+c.type+'">'+esc(c.name)+' · '+c.type+'</span>'; }).join('')+'</div>';
+  html += '<div class="table-wrap" style="max-height:60vh;"><table class="data-table"><thead><tr>'+cols.map(function(c){ return '<th>'+esc(c.name)+'</th>'; }).join('')+'</tr></thead><tbody>'+sample.map(function(r){ return '<tr>'+cols.map(function(c){ return '<td>'+esc(r[c.name])+'</td>'; }).join('')+'</tr>'; }).join('')+'</tbody></table></div>';
+  if(rows.length > sample.length){ html += '<div style="color:var(--ink-faint);font-size:12px;margin-top:8px;">Showing first '+sample.length+' of '+rows.length+' rows.</div>'; }
+  canvas.innerHTML = html;
+}
+function downloadDatasetCSV(d){
+  var rows = Store.getRows(d.id);
+  var cols = (d.columns||[]).map(function(c){return c.name;});
+  offerDownload(d.name.replace(/[^a-z0-9-_]+/gi,'_')+'.csv', toCSV(cols, rows));
+}
+function toCSV(cols, rows){
+  var lines = [cols.map(csvCell).join(',')];
+  rows.forEach(function(r){ lines.push(cols.map(function(c){ return csvCell(r[c]); }).join(',')); });
+  return lines.join('\n');
+}
+function csvCell(v){ v = (v===undefined||v===null) ? '' : String(v); if(/[",\n]/.test(v)) v = '"'+v.replace(/"/g,'""')+'"'; return v; }
+function offerDownload(filename, data){
+  try{
+    var blob = new Blob([data], {type:'text/csv'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(e){ toast('Could not prepare that download.', true); }
+}
+function confirmDeleteDataset(id){
+  var d = Store.datasets[id];
+  if(!confirm('Delete "'+d.name+'"? This removes it from every dashboard card that uses it.')) return;
+  Store.deleteDataset(id).then(function(){
+    delete Store.datasets[id];
+    state.view='home'; state.currentDatasetId=null;
+    toast('Dataset deleted.');
+    renderAll();
+  });
+}
+
+/* ---- dashboard view ---- */
+function renderDashboardView(title, sub, actions, canvas){
+  var dash = Store.dashboards[state.currentDashboardId];
+  if(!dash){ state.view='home'; return renderAll(); }
+  title.textContent = dash.name;
+  var cardIds = dash.cardIds||[];
+  sub.textContent = cardIds.length+' chart(s)';
+  actions.appendChild(mkBtn('+ Add chart', function(){ openChartConfigModal(dash.id); }, 'btn-primary'));
+  actions.appendChild(mkBtn('Rename', function(){ renameDashboard(dash.id); }, ''));
+  actions.appendChild(mkBtn('Delete', function(){ confirmDeleteDashboard(dash.id); }, 'btn-danger'));
+
+  var wrap = document.createElement('div');
+  if(Object.keys(Store.datasets).length){
+    var askWrap = document.createElement('div'); askWrap.style.marginBottom = '18px'; askWrap.innerHTML = buildAskBarHTML();
+    wrap.appendChild(askWrap);
+  }
+  var gridEl = document.createElement('div'); gridEl.className = 'dash-grid'; gridEl.id = 'dash-cards';
+  if(!cardIds.length){ gridEl.innerHTML = '<div class="empty-block" style="grid-column:1/-1;">No charts yet. Ask a question above, or add a chart manually.</div>'; }
+  wrap.appendChild(gridEl);
+  canvas.innerHTML = ''; canvas.appendChild(wrap);
+  cardIds.forEach(function(cid){ var card = Store.cards[cid]; if(card) appendCardEl(gridEl, card); });
+  wireAskBar(dash.id);
+}
+function buildAskBarHTML(){
+  var datasets = Object.values(Store.datasets);
+  var selector = datasets.length>1 ? '<select id="ask-dataset">'+datasets.map(function(d){return '<option value="'+d.id+'">'+esc(d.name)+'</option>';}).join('')+'</select>' : '';
+  var disabled = state.aiUnavailable;
+  return '<div class="ask-bar"><span class="spark">✦</span>'+selector+'<input type="text" id="ask-input" placeholder="'+(disabled?'AI querying is unavailable here':'Ask a question about your data…')+'" '+(disabled?'disabled':'')+' /><button class="btn btn-primary btn-sm" id="ask-btn" '+(disabled?'disabled':'')+'>Ask</button></div><div class="ask-note" id="ask-note"></div>';
+}
+function wireAskBar(dashboardId){
+  var btn = document.getElementById('ask-btn'); var input = document.getElementById('ask-input');
+  if(!btn) return;
+  function submit(){ askAI(dashboardId); }
+  btn.onclick = submit;
+  input.addEventListener('keydown', function(e){ if(e.key==='Enter') submit(); });
+}
+function parseJSONLoose(text){
+  try{ return JSON.parse(text); }catch(e){}
+  var s = text.indexOf('{'); var eIdx = text.lastIndexOf('}');
+  if(s>-1 && eIdx>s){ try{ return JSON.parse(text.slice(s,eIdx+1)); }catch(e){} }
+  throw new Error('unparseable');
+}
+async function askAI(dashboardId){
+  var note = document.getElementById('ask-note');
+  var input = document.getElementById('ask-input');
+  var btn = document.getElementById('ask-btn');
+  var dsSelect = document.getElementById('ask-dataset');
+  var datasets = Object.values(Store.datasets);
+  var dsId = dsSelect ? dsSelect.value : (datasets[0] && datasets[0].id);
+  var question = input.value.trim();
+  if(!question || !dsId) return;
+  var ds = Store.datasets[dsId];
+  var rows = Store.getRows(dsId);
+  var schema = (ds.columns||[]).map(function(c){ return c.name+' ('+c.type+')'; }).join(', ');
+  var sampleRows = rows.slice(0,15);
+  var prompt = 'You configure a chart for a dashboarding tool.\n'+
+    'Dataset "'+ds.name+'" has '+rows.length+' rows. Columns: '+schema+'.\n'+
+    'Sample rows as JSON: '+JSON.stringify(sampleRows)+'\n'+
+    'User question: "'+question+'"\n'+
+    'Reply with ONLY a JSON object, no markdown, in exactly this shape:\n'+
+    '{"chartType":"bar|line|pie|scatter|kpi|table","xField":"<exact column name or null>","yField":"<exact column name or null>","agg":"sum|avg|count|min|max","title":"<short title, under 8 words>"}\n'+
+    'xField and yField must be chosen from the exact column names listed above (case-sensitive), or null. If the question wants a single overall number, use chartType "kpi" with yField set and xField null.';
+
+  btn.disabled = true; input.disabled = true;
+  note.className = 'ask-note'; note.textContent = 'Thinking…';
+  try{
+    var res = await fetch('/api/ask', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({prompt:prompt})});
+    var body = await res.json();
+    if(!res.ok){ throw new Error(body.error || 'Request failed'); }
+    var spec = parseJSONLoose(body.text);
+    var colNames = (ds.columns||[]).map(function(c){return c.name;});
+    function matchCol(name){
+      if(!name) return null;
+      if(colNames.indexOf(name)>-1) return name;
+      var lower = String(name).toLowerCase();
+      var hit = colNames.filter(function(c){ return c.toLowerCase()===lower; });
+      return hit.length ? hit[0] : null;
+    }
+    var chartType = CHART_TYPES.some(function(t){return t[0]===spec.chartType;}) ? spec.chartType : 'bar';
+    var xField = matchCol(spec.xField);
+    var yField = matchCol(spec.yField);
+    if(!yField){ var numCol = (ds.columns||[]).filter(function(c){return c.type==='number';})[0]; yField = numCol ? numCol.name : colNames[0]; }
+    if(chartType!=='kpi' && !xField){ var catCol = (ds.columns||[]).filter(function(c){return c.type!=='number' && c.name!==yField;})[0]; xField = catCol ? catCol.name : colNames[0]; }
+    var agg = ['sum','avg','count','min','max'].indexOf(spec.agg)>-1 ? spec.agg : 'sum';
+    var card = {dashboardId:dashboardId, datasetId:dsId, type:chartType, title:spec.title||question.slice(0,60), xField:xField, yField:yField, agg:agg};
+    var newId = await Store.saveCard(card);
+    card.id = newId; Store.cards[newId] = card;
+    note.textContent = ''; input.value = '';
+    renderAll();
+    setTimeout(function(){ var el = document.getElementById('card-'+newId); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); }, 60);
+  }catch(e){
+    note.textContent = 'Couldn\'t work that out — check that your AI setup is complete, or try rephrasing.';
+    note.className = 'ask-note err';
+  } finally {
+    btn.disabled = false; input.disabled = false;
+  }
+}
+function appendCardEl(container, card){
+  var ds = Store.datasets[card.datasetId];
+  var el = document.createElement('div');
+  el.className = 'chart-card'+(card.type==='kpi'?' card-kpi':'')+(card.type==='table'?' card-table':'');
+  el.id = 'card-'+card.id;
+  el.innerHTML = '<div class="card-head"><h3>'+esc(card.title)+'</h3><div class="card-menu-wrap"><button class="btn btn-ghost btn-icon" data-menu-toggle>⋯</button><div class="card-menu" data-menu><button data-act="download">Download data</button><button data-act="edit">Edit</button><button data-act="delete">Delete</button></div></div></div><div class="chart-body" data-body></div>';
+  container.appendChild(el);
+  var menuToggle = el.querySelector('[data-menu-toggle]');
+  var menu = el.querySelector('[data-menu]');
+  menuToggle.onclick = function(ev){ ev.stopPropagation(); closeAllMenus(); menu.classList.add('open'); };
+  el.querySelector('[data-act=download]').onclick = function(){ downloadCardData(card); menu.classList.remove('open'); };
+  el.querySelector('[data-act=edit]').onclick = function(){ openChartConfigModal(card.dashboardId, card); menu.classList.remove('open'); };
+  el.querySelector('[data-act=delete]').onclick = function(){ deleteCardConfirm(card); menu.classList.remove('open'); };
+  var body = el.querySelector('[data-body]');
+  if(!ds){ body.innerHTML = '<div style="color:var(--ink-faint);font-size:12.5px;">Source dataset was deleted.</div>'; return; }
+  var rows = Store.getRows(card.datasetId);
+  var cols = ds.columns||[];
+  if(card.type==='kpi'){
+    var val = singleAgg(rows, card.yField, card.agg||'sum');
+    body.innerHTML = '<div><div class="kpi-value num">'+fmtNum(val)+'</div><div class="kpi-label">'+esc((card.agg||'sum'))+' of '+esc(card.yField)+' · '+rows.length+' rows</div></div>';
+  } else if(card.type==='table'){
+    var sample = rows.slice(0,25);
+    body.innerHTML = '<div class="table-wrap" style="max-height:280px;"><table class="data-table"><thead><tr>'+cols.map(function(c){return '<th>'+esc(c.name)+'</th>';}).join('')+'</tr></thead><tbody>'+sample.map(function(r){return '<tr>'+cols.map(function(c){return '<td>'+esc(r[c.name])+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';
+  } else {
+    body.innerHTML = '<canvas></canvas>';
+    var canvasEl = body.querySelector('canvas');
+    destroyChart(card.id);
+    try{ renderChartInto(canvasEl, card, rows, cols); }
+    catch(e){ body.innerHTML = '<div style="color:var(--ink-faint);font-size:12.5px;">Could not draw this chart.</div>'; }
+  }
+}
+function closeAllMenus(){ Array.prototype.forEach.call(document.querySelectorAll('.card-menu.open'), function(m){ m.classList.remove('open'); }); }
+document.addEventListener('click', closeAllMenus);
+function downloadCardData(card){
+  var ds = Store.datasets[card.datasetId]; if(!ds) return;
+  var rows = Store.getRows(card.datasetId);
+  var cols = (ds.columns||[]).map(function(c){return c.name;});
+  offerDownload((card.title||'chart').replace(/[^a-z0-9-_]+/gi,'_')+'.csv', toCSV(cols, rows));
+}
+function deleteCardConfirm(card){
+  if(!confirm('Delete this chart?')) return;
+  Store.deleteCard(card.id, card.dashboardId).then(function(){ delete Store.cards[card.id]; renderAll(); });
+}
+function renameDashboard(id){
+  var d = Store.dashboards[id];
+  var name = prompt('Dashboard name', d.name);
+  if(!name) return;
+  Store.saveDashboard(name.trim(), id).then(function(){ Store.dashboards[id].name = name.trim(); renderAll(); });
+}
+function confirmDeleteDashboard(id){
+  var d = Store.dashboards[id];
+  if(!confirm('Delete dashboard "'+d.name+'"? Its charts will be removed too.')) return;
+  Store.deleteDashboard(id).then(function(){
+    delete Store.dashboards[id];
+    state.view='home'; state.currentDashboardId=null;
+    toast('Dashboard deleted.');
+    renderAll();
+  });
+}
+
+/* ================= NAVIGATION ================= */
+function openDataset(id){ state.view='dataset'; state.currentDatasetId=id; renderAll(); }
+function openDashboard(id){ state.view='dashboard'; state.currentDashboardId=id; renderAll(); }
+
+/* ================= X-RAY AUTO DASHBOARD ================= */
+async function buildXrayDashboard(datasetId){
+  var d = Store.datasets[datasetId];
+  var rows = Store.getRows(datasetId);
+  var cols = d.columns||[];
+  var name = d.name+' overview';
+  var dashId = await Store.saveDashboard(name);
+  Store.dashboards[dashId] = Store.dashboards[dashId] || {id:dashId, name:name, cardIds:[], createdAt:Date.now()};
+
+  var numCol = cols.filter(function(c){return c.type==='number';})[0];
+  var dateCol = cols.filter(function(c){return c.type==='date';})[0];
+  var catCols = cols.filter(function(c){return c.type==='string';});
+  var catCol = catCols.filter(function(c){ var uniq = {}; rows.forEach(function(r){ uniq[r[c.name]]=1; }); return Object.keys(uniq).length<=20; })[0];
+
+  var toAdd = [];
+  toAdd.push({type:'kpi', title:'Total rows', xField:null, yField:cols[0].name, agg:'count'});
+  if(dateCol && numCol){ toAdd.push({type:'line', title:numCol.name+' over time', xField:dateCol.name, yField:numCol.name, agg:'sum'}); }
+  if(catCol && numCol){ toAdd.push({type:'bar', title:numCol.name+' by '+catCol.name, xField:catCol.name, yField:numCol.name, agg:'sum'}); }
+  else if(catCol){ toAdd.push({type:'bar', title:'Count by '+catCol.name, xField:catCol.name, yField:cols[0].name, agg:'count'}); }
+
+  for(var i=0;i<toAdd.length;i++){
+    var c = toAdd[i]; c.dashboardId = dashId; c.datasetId = datasetId;
+    var cid = await Store.saveCard(c);
+    c.id = cid; Store.cards[cid] = c;
+    Store.dashboards[dashId].cardIds.push(cid);
+  }
+  state.view='dashboard'; state.currentDashboardId=dashId;
+  renderAll();
+}
+
+/* ================= MODALS ================= */
+function openModal(html, onMount){
+  var root = document.getElementById('modal-root');
+  root.innerHTML = '<div class="modal-backdrop open"><div class="modal">'+html+'</div></div>';
+  var backdrop = root.querySelector('.modal-backdrop');
+  backdrop.addEventListener('mousedown', function(e){ if(e.target===backdrop) closeModal(); });
+  if(onMount) onMount(root.querySelector('.modal'));
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+
+function openUploadModal(){
+  state.uploadTab='file'; state.uploadHeaders=[]; state.uploadRows=[]; state.uploadCols=[];
+  state.manualCols=['Column A','Column B']; state.manualRows=[['',''],['','']];
+  var html = '<div class="modal-head"><h3>Add data</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body"><div class="tabs"><button class="tab active" data-tab="file">Upload file</button><button class="tab" data-tab="paste">Paste data</button><button class="tab" data-tab="manual">Type it in</button></div><div id="tab-content"></div></div><div class="modal-foot"><div class="field" style="flex:1;margin:0;"><input type="text" id="dataset-name" placeholder="Dataset name" /></div><button class="btn btn-primary" id="m-save" disabled>Save dataset</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    Array.prototype.forEach.call(modal.querySelectorAll('.tab'), function(t){
+      t.onclick = function(){
+        Array.prototype.forEach.call(modal.querySelectorAll('.tab'), function(x){x.classList.remove('active');});
+        t.classList.add('active');
+        state.uploadTab = t.getAttribute('data-tab');
+        renderUploadTabContent();
+      };
+    });
+    renderUploadTabContent();
+    document.getElementById('m-save').onclick = saveUploadedDataset;
+  });
+}
+function renderUploadTabContent(){
+  var wrap = document.getElementById('tab-content'); if(!wrap) return;
+  if(state.uploadTab==='file'){
+    wrap.innerHTML = '<div class="field"><label>CSV or Excel file (.csv, .xlsx, .xls)</label><input type="file" id="file-input" accept=".csv,.xlsx,.xls" /></div><div id="upload-preview"></div>';
+    document.getElementById('file-input').onchange = function(e){
+      var file = e.target.files[0]; if(!file) return;
+      var lower = file.name.toLowerCase();
+      if(lower.endsWith('.csv')){
+        var reader = new FileReader();
+        reader.onload = function(ev){ parseCSVText(ev.target.result, applyParsedData); };
+        reader.readAsText(file);
+      } else { parseExcelFile(file, applyParsedData); }
+      if(!document.getElementById('dataset-name').value){ document.getElementById('dataset-name').value = file.name.replace(/\.[^.]+$/,''); }
+    };
+  } else if(state.uploadTab==='paste'){
+    wrap.innerHTML = '<div class="field"><label>Paste rows (from Excel, Sheets, or comma-separated text) — first line as headers</label><textarea id="paste-area" placeholder="name,revenue,month\nAcme,4200,Jan\nBeta,3100,Jan"></textarea></div><button class="btn" id="parse-paste">Parse</button><div id="upload-preview"></div>';
+    document.getElementById('parse-paste').onclick = function(){ var text = document.getElementById('paste-area').value; if(!text.trim()) return; parsePasted(text, applyParsedData); };
+  } else {
+    wrap.innerHTML = '<div id="manual-grid-wrap"></div>';
+    renderManualGrid();
+  }
+}
+function applyParsedData(headers, rows, sheetNames){
+  if(!headers.length){ toast('No columns found in that file.', true); return; }
+  state.uploadHeaders = headers; state.uploadRows = rows; state.uploadCols = inferColumns(rows, headers);
+  renderUploadPreview(sheetNames);
+}
+function renderUploadPreview(sheetNames){
+  var el = document.getElementById('upload-preview'); if(!el) return;
+  var sample = state.uploadRows.slice(0,8);
+  var note = state.uploadRows.length>MAX_ROWS ? ('Only the first '+MAX_ROWS+' of '+state.uploadRows.length+' rows will be saved.') : (state.uploadRows.length+' rows detected.');
+  var sheetNote = sheetNames && sheetNames.length>1 ? ' Using sheet "'+esc(sheetNames[0])+'".' : '';
+  el.innerHTML = '<div class="preview-wrap"><div class="preview-note">'+note+sheetNote+'</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">'+state.uploadCols.map(function(c){return '<span class="tag t-'+c.type+'">'+esc(c.name)+' · '+c.type+'</span>';}).join('')+'</div><div class="table-wrap" style="max-height:220px;"><table class="data-table"><thead><tr>'+state.uploadHeaders.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr></thead><tbody>'+sample.map(function(r){return '<tr>'+state.uploadHeaders.map(function(h){return '<td>'+esc(r[h])+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>';
+  document.getElementById('m-save').disabled = false;
+}
+function renderManualGrid(){
+  var wrap = document.getElementById('manual-grid-wrap');
+  var html = '<div class="grid-toolbar"><button class="btn btn-sm" id="add-row">+ Row</button><button class="btn btn-sm" id="add-col">+ Column</button></div>';
+  html += '<div class="table-wrap"><table class="manual-grid"><thead><tr><th class="row-x"></th>'+state.manualCols.map(function(c,ci){ return '<th><input type="text" value="'+esc(c)+'" data-col="'+ci+'" /></th>'; }).join('')+'</tr></thead><tbody>';
+  state.manualRows.forEach(function(row, ri){
+    html += '<tr><td class="row-x" data-rmrow="'+ri+'">✕</td>'+row.map(function(cell, ci){ return '<td><input type="text" value="'+esc(cell)+'" data-row="'+ri+'" data-cell="'+ci+'" /></td>'; }).join('')+'</tr>';
+  });
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+  document.getElementById('add-row').onclick = function(){ state.manualRows.push(state.manualCols.map(function(){return '';})); renderManualGrid(); };
+  document.getElementById('add-col').onclick = function(){ state.manualCols.push('Column '+String.fromCharCode(65+state.manualCols.length)); state.manualRows.forEach(function(r){r.push('');}); renderManualGrid(); };
+  Array.prototype.forEach.call(wrap.querySelectorAll('[data-rmrow]'), function(el){ el.onclick = function(){ state.manualRows.splice(parseInt(el.getAttribute('data-rmrow')),1); renderManualGrid(); }; });
+  Array.prototype.forEach.call(wrap.querySelectorAll('input[data-col]'), function(el){ el.onchange = function(){ state.manualCols[parseInt(el.getAttribute('data-col'))] = el.value || ('Column '+(parseInt(el.getAttribute('data-col'))+1)); syncManualToUpload(); }; });
+  Array.prototype.forEach.call(wrap.querySelectorAll('input[data-row]'), function(el){ el.onchange = function(){ state.manualRows[parseInt(el.getAttribute('data-row'))][parseInt(el.getAttribute('data-cell'))] = el.value; syncManualToUpload(); }; });
+  syncManualToUpload();
+}
+function syncManualToUpload(){
+  var headers = state.manualCols.slice();
+  var rows = state.manualRows.map(function(r){ var o = {}; headers.forEach(function(h,i){ o[h]=r[i]; }); return o; }).filter(function(r){ return Object.values(r).some(function(v){return v!=='';}); });
+  state.uploadHeaders = headers; state.uploadRows = rows; state.uploadCols = inferColumns(rows, headers);
+  document.getElementById('m-save').disabled = rows.length===0;
+}
+function saveUploadedDataset(){
+  var nameInput = document.getElementById('dataset-name');
+  var name = (nameInput.value || 'Untitled dataset').trim();
+  if(!state.uploadRows.length){ toast('Add some data first.', true); return; }
+  var saveBtn = document.getElementById('m-save');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+  Store.saveDataset(name, state.uploadCols, state.uploadRows).then(function(id){
+    closeModal();
+    toast('Dataset saved.');
+    buildXrayDashboard(id);
+  }).catch(function(e){
+    saveBtn.disabled=false; saveBtn.textContent='Save dataset';
+    toast('Could not save this dataset.', true);
+  });
+}
+
+function openChartConfigModal(dashboardId, existingCard){
+  var datasets = Object.values(Store.datasets);
+  if(!datasets.length){ toast('Add a dataset first.', true); return; }
+  var card = existingCard ? Object.assign({}, existingCard) : {dashboardId:dashboardId, datasetId:datasets[0].id, type:'bar', title:'', xField:'', yField:'', agg:'sum'};
+  var html = '<div class="modal-head"><h3>'+(existingCard?'Edit chart':'Add chart')+'</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body"><div class="field"><label>Title</label><input type="text" id="cfg-title" value="'+esc(card.title)+'" placeholder="e.g. Revenue by month" /></div><div class="field-row"><div class="field"><label>Dataset</label><select id="cfg-dataset">'+datasets.map(function(d){return '<option value="'+d.id+'"'+(d.id===card.datasetId?' selected':'')+'>'+esc(d.name)+'</option>';}).join('')+'</select></div><div class="field"><label>Chart type</label><select id="cfg-type">'+CHART_TYPES.map(function(t){return '<option value="'+t[0]+'"'+(t[0]===card.type?' selected':'')+'>'+t[1]+'</option>';}).join('')+'</select></div></div><div id="cfg-fields"></div></div><div class="modal-foot"><span></span><button class="btn btn-primary" id="cfg-save">Save chart</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    function renderFields(){
+      var ds = Store.datasets[document.getElementById('cfg-dataset').value];
+      var type = document.getElementById('cfg-type').value;
+      var cols = ds.columns||[];
+      var numCols = cols.filter(function(c){return c.type==='number';});
+      var fieldsEl = document.getElementById('cfg-fields');
+      var xOpts = cols, yOpts = type==='scatter' ? numCols : cols;
+      var showX = type!=='kpi' && type!=='table';
+      var showY = type!=='table';
+      var showAgg = type!=='scatter' && type!=='table';
+      var html2 = '<div class="field-row">';
+      if(showX){ html2 += '<div class="field"><label>'+(type==='pie'?'Group by':'X axis')+'</label><select id="cfg-x">'+xOpts.map(function(c){return '<option value="'+esc(c.name)+'"'+(c.name===card.xField?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></div>'; }
+      if(showY){ html2 += '<div class="field"><label>'+(type==='scatter'?'Y axis':'Value')+'</label><select id="cfg-y">'+yOpts.map(function(c){return '<option value="'+esc(c.name)+'"'+(c.name===card.yField?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></div>'; }
+      html2 += '</div>';
+      if(showAgg){ html2 += '<div class="field"><label>Aggregation</label><select id="cfg-agg">'+AGGS.map(function(a){return '<option value="'+a[0]+'"'+(a[0]===(card.agg||'sum')?' selected':'')+'>'+a[1]+'</option>';}).join('')+'</select></div>'; }
+      fieldsEl.innerHTML = html2;
+    }
+    document.getElementById('cfg-dataset').onchange = renderFields;
+    document.getElementById('cfg-type').onchange = renderFields;
+    renderFields();
+    document.getElementById('cfg-save').onclick = function(){
+      var type = document.getElementById('cfg-type').value;
+      var xEl = document.getElementById('cfg-x'), yEl = document.getElementById('cfg-y'), aggEl = document.getElementById('cfg-agg');
+      var title = document.getElementById('cfg-title').value.trim() || 'Untitled chart';
+      var newCard = {id: existingCard ? existingCard.id : undefined, dashboardId: dashboardId, datasetId: document.getElementById('cfg-dataset').value, type: type, title: title, xField: xEl ? xEl.value : null, yField: yEl ? yEl.value : null, agg: aggEl ? aggEl.value : 'sum'};
+      Store.saveCard(newCard).then(function(id){
+        newCard.id = id; Store.cards[id] = newCard;
+        if(Store.dashboards[dashboardId] && (Store.dashboards[dashboardId].cardIds||[]).indexOf(id)===-1){
+          Store.dashboards[dashboardId].cardIds = (Store.dashboards[dashboardId].cardIds||[]).concat([id]);
+        }
+        closeModal(); renderAll();
+      });
+    };
+  });
+}
+function newDashboardFlow(){
+  var name = prompt('Name this dashboard', 'New dashboard');
+  if(!name) return;
+  Store.saveDashboard(name.trim()).then(function(id){ openDashboard(id); });
+}
+
+/* ================= WIRING ================= */
+document.getElementById('btn-add-data').onclick = openUploadModal;
+document.getElementById('btn-add-dashboard').onclick = newDashboardFlow;
+document.getElementById('hamburger').onclick = function(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('scrim').classList.add('open'); };
+document.getElementById('scrim').onclick = closeSidebarMobile;
+document.getElementById('btn-theme').onclick = function(){
+  var cur = document.documentElement.getAttribute('data-theme');
+  var next = cur==='dark' ? 'light' : (cur==='light' ? null : (isDark() ? 'light' : 'dark'));
+  if(next){ document.documentElement.setAttribute('data-theme', next); } else { document.documentElement.removeAttribute('data-theme'); }
+  Object.keys(chartInstances).forEach(function(id){ destroyChart(id); });
+  renderAll();
+};
+
+/* ================= BOOT ================= */
+showSetupBanner();
+Store.init().then(function(){ renderAll(); });
+})();
+</script>
+</body>
+</html>
