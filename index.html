@@ -318,6 +318,61 @@ var SECTIONS = [
   ["documents","Documents"]
 ];
 
+// Generic config for the four structured record modules. Each renders as a
+// list + add/edit modal using the same engine, driven by this config.
+var MODULES = {
+  'audit-plan': {
+    table:'audit_plans', label:'Audit Plan', singular:'Audit',
+    fields:[
+      {key:'title', label:'Title', type:'text', required:true},
+      {key:'scope', label:'Scope', type:'textarea'},
+      {key:'start_date', label:'Start date', type:'date'},
+      {key:'end_date', label:'End date', type:'date'},
+      {key:'auditor', label:'Auditor', type:'text'},
+      {key:'status', label:'Status', type:'select', options:['Planned','In Progress','Completed','On Hold'], default:'Planned'}
+    ],
+    listFields:['title','auditor','status','start_date']
+  },
+  'observations': {
+    table:'observations', label:'Observations', singular:'Observation',
+    fields:[
+      {key:'title', label:'Title', type:'text', required:true},
+      {key:'description', label:'Description', type:'textarea'},
+      {key:'severity', label:'Severity', type:'select', options:['Low','Medium','High','Critical'], default:'Medium'},
+      {key:'status', label:'Status', type:'select', options:['Open','In Progress','Closed'], default:'Open'},
+      {key:'assigned_to', label:'Assigned to', type:'text'},
+      {key:'due_date', label:'Due date', type:'date'},
+      {key:'audit_plan_id', label:'Related audit', type:'relation', relatedModule:'audit-plan', relatedLabel:'title'}
+    ],
+    listFields:['title','severity','status','assigned_to','due_date']
+  },
+  'rcm': {
+    table:'rcm_items', label:'Risk Control Matrix', singular:'RCM item',
+    fields:[
+      {key:'risk', label:'Risk', type:'textarea', required:true},
+      {key:'control', label:'Control', type:'textarea'},
+      {key:'control_owner', label:'Control owner', type:'text'},
+      {key:'frequency', label:'Frequency', type:'select', options:['Daily','Weekly','Monthly','Quarterly','Annually','Ad-hoc']},
+      {key:'effectiveness', label:'Effectiveness', type:'select', options:['Effective','Partially Effective','Ineffective','Not Tested'], default:'Not Tested'},
+      {key:'audit_plan_id', label:'Related audit', type:'relation', relatedModule:'audit-plan', relatedLabel:'title'}
+    ],
+    listFields:['risk','control_owner','frequency','effectiveness']
+  },
+  'testing': {
+    table:'testing_items', label:'Testing', singular:'Test',
+    fields:[
+      {key:'test_description', label:'Test description', type:'textarea', required:true},
+      {key:'sample_size', label:'Sample size', type:'number'},
+      {key:'result', label:'Result', type:'select', options:['Pass','Fail','Not Tested'], default:'Not Tested'},
+      {key:'tester', label:'Tester', type:'text'},
+      {key:'date_tested', label:'Date tested', type:'date'},
+      {key:'notes', label:'Notes', type:'textarea'},
+      {key:'rcm_item_id', label:'Related RCM item', type:'relation', relatedModule:'rcm', relatedLabel:'risk'}
+    ],
+    listFields:['test_description','result','tester','date_tested']
+  }
+};
+
 function uid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
@@ -608,6 +663,46 @@ var Store = {
   }
 };
 
+/* ================= RECORDS (generic store for audit modules) ================= */
+// Simpler than Store on purpose: these load when you open a section, and
+// refresh after you save/delete, rather than staying live-subscribed.
+var Records = {
+  cache: {}, // table -> array of rows
+
+  load: async function(table){
+    if(!sb){ this.cache[table] = []; return []; }
+    try{
+      var res = await sb.from(table).select('*').order('created_at', {ascending:false});
+      if(res.error) throw res.error;
+      this.cache[table] = res.data || [];
+    }catch(e){
+      toast('Could not load that data.', true);
+      this.cache[table] = this.cache[table] || [];
+    }
+    return this.cache[table];
+  },
+  save: async function(table, values, id){
+    if(!sb) return null;
+    var payload = {};
+    Object.keys(values).forEach(function(k){ payload[k] = values[k]===''? null : values[k]; });
+    if(id){
+      var r1 = await sb.from(table).update(payload).eq('id', id);
+      if(r1.error) throw r1.error;
+      return id;
+    } else {
+      if(Auth.user) payload.created_by = Auth.user.id;
+      var r2 = await sb.from(table).insert(payload).select().single();
+      if(r2.error) throw r2.error;
+      return r2.data.id;
+    }
+  },
+  remove: async function(table, id){
+    if(!sb) return;
+    var r = await sb.from(table).delete().eq('id', id);
+    if(r.error) throw r.error;
+  }
+};
+
 /* ================= AGGREGATION ================= */
 function aggregate(rows, xField, yField, xType, agg){
   var groups = {}; var order = [];
@@ -774,14 +869,6 @@ function updateSyncBadge(){
 function closeSidebarMobile(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
 
 /* ================= RENDER: MAIN VIEWS ================= */
-var SECTION_INFO = {
-  'audit-plan': {label:'Audit Plan', desc:'Plan and schedule audits \u2014 scope, timing, and who\u2019s assigned to each one.'},
-  'observations': {label:'Observations', desc:'Log findings raised during an audit, their severity, and their status through to resolution.'},
-  'rcm': {label:'Risk Control Matrix', desc:'Map risks to the controls meant to address them, and track how effective each control is.'},
-  'testing': {label:'Testing', desc:'Record test procedures run against controls, sample sizes, and pass/fail results.'},
-  'reports': {label:'Reports', desc:'Generate and export formatted reports pulled from your audit data.'},
-  'documents': {label:'Documents', desc:'Store and organize supporting evidence and workpapers for each audit.'}
-};
 function renderAll(){
   renderSidebar();
   var title = document.getElementById('topbar-title');
@@ -790,12 +877,9 @@ function renderAll(){
   var canvas = document.getElementById('canvas');
   actions.innerHTML = ''; sub.textContent = '';
 
-  if(state.section!=='dashboard'){
-    var info = SECTION_INFO[state.section] || {label:state.section, desc:''};
-    title.textContent = info.label;
-    canvas.innerHTML = '<div class="placeholder-page"><div class="kicker">PHASE 2 \u00b7 COMING NEXT</div><h2>'+esc(info.label)+'</h2><p>'+esc(info.desc)+'</p><p>This section is part of the plan but isn\u2019t built yet \u2014 it\u2019s next up, right after the login system you\u2019re using right now.</p></div>';
-    return;
-  }
+  if(MODULES[state.section]){ renderModuleSection(state.section, title, sub, actions, canvas); return; }
+  if(state.section==='documents'){ renderDocumentsSection(title, sub, actions, canvas); return; }
+  if(state.section==='reports'){ renderReportsSection(title, sub, actions, canvas); return; }
 
   var hasAnyDataset = Object.keys(Store.datasets).length>0;
 
@@ -1223,6 +1307,263 @@ function newDashboardFlow(){
   var name = prompt('Name this dashboard', 'New dashboard');
   if(!name) return;
   Store.saveDashboard(name.trim()).then(function(id){ openDashboard(id); });
+}
+
+/* ================= GENERIC MODULE SECTIONS (Audit Plan / Observations / RCM / Testing) ================= */
+function tagClassFor(value){
+  var v = String(value||'').toLowerCase();
+  if(/critical|fail|open|ineffective/.test(v)) return 'tag t-string';
+  if(/high|progress|pending|partially/.test(v)) return 'tag t-date';
+  if(/low|closed|complete|pass|effective|planned/.test(v)) return 'tag t-number';
+  return 'tag';
+}
+function fieldDisplay(value, field){
+  if(value===undefined || value===null || value==='') return '—';
+  if(field && field.type==='select') return '<span class="'+tagClassFor(value)+'">'+esc(value)+'</span>';
+  var s = String(value);
+  return esc(s.length>80 ? s.slice(0,80)+'…' : s);
+}
+async function renderModuleSection(sectionKey, title, sub, actions, canvas){
+  var cfg = MODULES[sectionKey];
+  title.textContent = cfg.label;
+  if(canEdit()) actions.appendChild(mkBtn('+ Add '+cfg.singular, function(){ openRecordModal(sectionKey); }, 'btn-primary'));
+  canvas.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;">Loading…</div>';
+  var records = await Records.load(cfg.table);
+  if(state.section!==sectionKey) return; // user navigated away while loading
+  sub.textContent = records.length+' '+(records.length===1 ? cfg.singular : cfg.label.toLowerCase());
+  renderModuleTable(sectionKey, records, canvas);
+}
+function renderModuleTable(sectionKey, records, canvas){
+  var cfg = MODULES[sectionKey];
+  if(!records.length){
+    canvas.innerHTML = '<div class="empty-block">No '+esc(cfg.label.toLowerCase())+' yet.'+(canEdit() ? ' Click "+ Add '+esc(cfg.singular)+'" to create the first one.' : '')+'</div>';
+    return;
+  }
+  var fieldByKey = {}; cfg.fields.forEach(function(f){ fieldByKey[f.key]=f; });
+  var html = '<div class="table-wrap"><table class="data-table"><thead><tr>'+
+    cfg.listFields.map(function(k){ return '<th>'+esc(fieldByKey[k].label)+'</th>'; }).join('')+
+    (canEdit() ? '<th></th>' : '')+
+    '</tr></thead><tbody>';
+  records.forEach(function(r){
+    html += '<tr>'+cfg.listFields.map(function(k){ return '<td>'+fieldDisplay(r[k], fieldByKey[k])+'</td>'; }).join('');
+    if(canEdit()){
+      html += '<td><button class="btn btn-ghost btn-sm" data-edit-record="'+r.id+'">Edit</button> <button class="btn btn-ghost btn-sm" data-delete-record="'+r.id+'">Delete</button></td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  canvas.innerHTML = html;
+  Array.prototype.forEach.call(canvas.querySelectorAll('[data-edit-record]'), function(btn){
+    btn.onclick = function(){
+      var rec = records.filter(function(r){ return r.id===btn.getAttribute('data-edit-record'); })[0];
+      openRecordModal(sectionKey, rec);
+    };
+  });
+  Array.prototype.forEach.call(canvas.querySelectorAll('[data-delete-record]'), function(btn){
+    btn.onclick = function(){
+      if(!confirm('Delete this '+cfg.singular.toLowerCase()+'?')) return;
+      Records.remove(cfg.table, btn.getAttribute('data-delete-record')).then(function(){
+        toast(cfg.singular+' deleted.');
+        renderAll();
+      }).catch(function(){ toast('Could not delete.', true); });
+    };
+  });
+}
+async function openRecordModal(sectionKey, existing){
+  var cfg = MODULES[sectionKey];
+  // Pre-load options for any relation fields before building the form.
+  var relationOptions = {};
+  for(var i=0;i<cfg.fields.length;i++){
+    var f = cfg.fields[i];
+    if(f.type==='relation'){
+      var relCfg = MODULES[f.relatedModule];
+      var opts = await Records.load(relCfg.table);
+      relationOptions[f.key] = opts;
+    }
+  }
+  var html = '<div class="modal-head"><h3>'+(existing?'Edit ':'Add ')+esc(cfg.singular)+'</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body">';
+  cfg.fields.forEach(function(f){
+    var val = existing ? (existing[f.key]!==undefined && existing[f.key]!==null ? existing[f.key] : '') : (f.default||'');
+    html += '<div class="field"><label>'+esc(f.label)+(f.required?' *':'')+'</label>';
+    if(f.type==='textarea'){
+      html += '<textarea data-field="'+f.key+'">'+esc(val)+'</textarea>';
+    } else if(f.type==='select'){
+      html += '<select data-field="'+f.key+'">'+f.options.map(function(o){ return '<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select>';
+    } else if(f.type==='relation'){
+      var relCfg = MODULES[f.relatedModule];
+      var opts2 = relationOptions[f.key] || [];
+      html += '<select data-field="'+f.key+'"><option value="">— None —</option>'+
+        opts2.map(function(o){ var lbl = String(o[f.relatedLabel]||'').slice(0,60); return '<option value="'+o.id+'"'+(o.id===val?' selected':'')+'>'+esc(lbl)+'</option>'; }).join('')+
+        '</select>';
+    } else if(f.type==='date'){
+      html += '<input type="date" data-field="'+f.key+'" value="'+esc(val)+'" />';
+    } else if(f.type==='number'){
+      html += '<input type="number" data-field="'+f.key+'" value="'+esc(val)+'" />';
+    } else {
+      html += '<input type="text" data-field="'+f.key+'" value="'+esc(val)+'" />';
+    }
+    html += '</div>';
+  });
+  html += '</div><div class="modal-foot"><span></span><button class="btn btn-primary" id="record-save">Save</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('record-save').onclick = async function(){
+      var values = {};
+      var missing = false;
+      cfg.fields.forEach(function(f){
+        var el = modal.querySelector('[data-field="'+f.key+'"]');
+        var v = el ? el.value : '';
+        if(f.required && !v){ missing = true; }
+        values[f.key] = (f.type==='number' && v!=='') ? Number(v) : v;
+      });
+      if(missing){ toast('Fill in the required field(s).', true); return; }
+      var btn = document.getElementById('record-save');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try{
+        await Records.save(cfg.table, values, existing ? existing.id : null);
+        closeModal();
+        toast(cfg.singular+' saved.');
+        renderAll();
+      }catch(e){
+        btn.disabled = false; btn.textContent = 'Save';
+        toast('Could not save. Check required fields.', true);
+      }
+    };
+  });
+}
+
+/* ================= DOCUMENTS ================= */
+async function renderDocumentsSection(title, sub, actions, canvas){
+  title.textContent = 'Documents';
+  if(canEdit()) actions.appendChild(mkBtn('+ Upload document', openDocUploadModal, 'btn-primary'));
+  canvas.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;">Loading…</div>';
+  var docs = await Records.load('documents');
+  if(state.section!=='documents') return;
+  sub.textContent = docs.length+' document(s)';
+  if(!docs.length){
+    canvas.innerHTML = '<div class="empty-block">No documents yet.'+(canEdit()?' Click "+ Upload document" to add the first one.':'')+'</div>';
+    return;
+  }
+  var html = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Title</th><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr></thead><tbody>';
+  docs.forEach(function(d){
+    var kb = d.file_size ? Math.round(d.file_size/1024)+' KB' : '—';
+    var when = d.created_at ? new Date(d.created_at).toLocaleDateString() : '—';
+    html += '<tr><td>'+esc(d.title)+'</td><td>'+esc(d.file_name||'')+'</td><td>'+kb+'</td><td>'+when+'</td>'+
+      '<td><button class="btn btn-ghost btn-sm" data-download-doc="'+d.id+'">Download</button>'+
+      (canEdit() ? ' <button class="btn btn-ghost btn-sm" data-delete-doc="'+d.id+'">Delete</button>' : '')+
+      '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  canvas.innerHTML = html;
+  Array.prototype.forEach.call(canvas.querySelectorAll('[data-download-doc]'), function(btn){
+    btn.onclick = function(){
+      var doc = docs.filter(function(d){ return d.id===btn.getAttribute('data-download-doc'); })[0];
+      downloadDocument(doc);
+    };
+  });
+  Array.prototype.forEach.call(canvas.querySelectorAll('[data-delete-doc]'), function(btn){
+    btn.onclick = function(){
+      var doc = docs.filter(function(d){ return d.id===btn.getAttribute('data-delete-doc'); })[0];
+      deleteDocumentConfirm(doc);
+    };
+  });
+}
+async function downloadDocument(doc){
+  if(!doc || !sb) return;
+  try{
+    var res = await sb.storage.from('documents').createSignedUrl(doc.file_path, 60);
+    if(res.error) throw res.error;
+    window.open(res.data.signedUrl, '_blank');
+  }catch(e){ toast('Could not open that file.', true); }
+}
+function deleteDocumentConfirm(doc){
+  if(!doc) return;
+  if(!confirm('Delete "'+doc.title+'"?')) return;
+  (async function(){
+    try{
+      await sb.storage.from('documents').remove([doc.file_path]);
+      await Records.remove('documents', doc.id);
+      toast('Document deleted.');
+      renderAll();
+    }catch(e){ toast('Could not delete that document.', true); }
+  })();
+}
+function openDocUploadModal(){
+  var html = '<div class="modal-head"><h3>Upload document</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body">'+
+    '<div class="field"><label>Title</label><input type="text" id="doc-title" placeholder="e.g. Q3 Travel Policy" /></div>'+
+    '<div class="field"><label>File</label><input type="file" id="doc-file" /></div>'+
+    '</div><div class="modal-foot"><span></span><button class="btn btn-primary" id="doc-save" disabled>Upload</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    var fileInput = document.getElementById('doc-file');
+    var titleInput = document.getElementById('doc-title');
+    fileInput.onchange = function(){
+      if(fileInput.files[0] && !titleInput.value){ titleInput.value = fileInput.files[0].name.replace(/\.[^.]+$/,''); }
+      document.getElementById('doc-save').disabled = !fileInput.files[0];
+    };
+    document.getElementById('doc-save').onclick = async function(){
+      var file = fileInput.files[0];
+      if(!file) return;
+      var btn = document.getElementById('doc-save');
+      btn.disabled = true; btn.textContent = 'Uploading…';
+      try{
+        var path = uid()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+        var up = await sb.storage.from('documents').upload(path, file);
+        if(up.error) throw up.error;
+        var payload = { title: titleInput.value.trim()||file.name, file_name:file.name, file_path:path, file_size:file.size, content_type:file.type };
+        if(Auth.user) payload.created_by = Auth.user.id;
+        var ins = await sb.from('documents').insert(payload);
+        if(ins.error) throw ins.error;
+        closeModal();
+        toast('Document uploaded.');
+        renderAll();
+      }catch(e){
+        btn.disabled = false; btn.textContent = 'Upload';
+        toast('Could not upload that file.', true);
+      }
+    };
+  });
+}
+
+/* ================= REPORTS ================= */
+var REPORT_SOURCES = [
+  {key:'datasets', label:'Uploaded datasets'},
+  {key:'audit-plan', label:'Audit Plan'},
+  {key:'observations', label:'Observations'},
+  {key:'rcm', label:'RCM'},
+  {key:'testing', label:'Testing'}
+];
+function renderReportsSection(title, sub, actions, canvas){
+  title.textContent = 'Reports';
+  sub.textContent = 'Export your audit data as CSV';
+  canvas.innerHTML = '<div class="placeholder-page" style="margin-top:4vh;">'+
+    '<h2 style="font-size:22px;margin-bottom:14px;">Export a report</h2>'+
+    '<div class="field"><label>Source</label><select id="report-source">'+REPORT_SOURCES.map(function(s){ return '<option value="'+s.key+'">'+esc(s.label)+'</option>'; }).join('')+'</select></div>'+
+    '<button class="btn btn-primary" id="report-export">Export as CSV</button>'+
+    '<div class="ask-note" id="report-note" style="margin-top:10px;"></div>'+
+    '</div>';
+  document.getElementById('report-export').onclick = async function(){
+    var key = document.getElementById('report-source').value;
+    var note = document.getElementById('report-note');
+    note.textContent = 'Preparing…'; note.className = 'ask-note';
+    try{
+      if(key==='datasets'){
+        var datasets = Object.values(Store.datasets);
+        if(!datasets.length){ note.textContent = 'No datasets to export yet.'; note.className='ask-note err'; return; }
+        datasets.forEach(function(d){
+          var cols = (d.columns||[]).map(function(c){return c.name;});
+          offerDownload(d.name.replace(/[^a-z0-9-_]+/gi,'_')+'.csv', toCSV(cols, Store.getRows(d.id)));
+        });
+      } else {
+        var cfg = MODULES[key];
+        var records = await Records.load(cfg.table);
+        if(!records.length){ note.textContent = 'No '+cfg.label.toLowerCase()+' to export yet.'; note.className='ask-note err'; return; }
+        var cols2 = cfg.fields.map(function(f){return f.key;});
+        offerDownload(cfg.table+'.csv', toCSV(cols2, records));
+      }
+      note.textContent = 'Downloaded.'; note.className = 'ask-note';
+    }catch(e){ note.textContent = 'Could not export that.'; note.className='ask-note err'; }
+  };
 }
 
 /* ================= TEAM MANAGEMENT ================= */
