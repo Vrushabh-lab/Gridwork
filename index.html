@@ -133,6 +133,7 @@ select{appearance:none; background-image:linear-gradient(45deg, transparent 50%,
 .card-menu button{display:block; width:100%; text-align:left; padding:9px 12px; background:none; border:none; font-size:13px; color:var(--ink); cursor:pointer;}
 .card-menu button:hover{background:var(--surface-2);}
 .chart-body{flex:1; min-height:0; position:relative;}
+.chart-body canvas{cursor:pointer;}
 .kpi-value{font-family:var(--font-display); font-size:40px; font-weight:600; line-height:1;}
 .kpi-label{color:var(--ink-faint); font-size:12.5px; margin-top:6px;}
 .table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius-control);}
@@ -307,7 +308,7 @@ if(CONFIGURED && window.supabase){
 /* ================= CONSTANTS ================= */
 var MAX_ROWS = 20000;
 var AGGS = [["sum","Sum"],["avg","Average"],["count","Count"],["min","Minimum"],["max","Maximum"]];
-var CHART_TYPES = [["bar","Bar"],["line","Line"],["pie","Pie"],["scatter","Scatter"],["kpi","Big number"],["table","Table"]];
+var CHART_TYPES = [["bar","Bar"],["hbar","Horizontal bar"],["line","Line"],["area","Area"],["pie","Pie"],["donut","Donut"],["scatter","Scatter"],["kpi","Big number"],["table","Table"]];
 var SECTIONS = [
   ["dashboard","Dashboard"],
   ["audit-plan","Audit Plan"],
@@ -315,7 +316,8 @@ var SECTIONS = [
   ["rcm","RCM"],
   ["testing","Testing"],
   ["reports","Reports"],
-  ["documents","Documents"]
+  ["documents","Documents"],
+  ["audit-trail","Audit Trail"]
 ];
 
 // Generic config for the four structured record modules. Each renders as a
@@ -487,6 +489,18 @@ var Auth = {
   }
 };
 
+/* ================= ACTIVITY LOG (Audit Trail) ================= */
+function logActivity(action, entityType, label){
+  if(!sb || !Auth.user) return; // fire-and-forget, never blocks the real action
+  sb.from('activity_log').insert({
+    user_id: Auth.user.id,
+    user_email: Auth.user.email,
+    action: action,
+    entity_type: entityType,
+    entity_label: label ? String(label).slice(0,200) : null
+  }).then(function(){}, function(){});
+}
+
 /* ================= STORE (Supabase, localStorage fallback) ================= */
 var Store = {
   mode: 'local',
@@ -575,6 +589,7 @@ var Store = {
       if(res.error) throw res.error;
       var id = res.data.id;
       this.datasets[id] = {id:id, name:name, columns:columns, rows:rows, rowCount:rows.length, truncated:truncated, createdAt:Date.now()};
+      logActivity('created', 'dataset', name);
       return id;
     } else {
       var id2 = uid();
@@ -593,11 +608,13 @@ var Store = {
     if(this.mode==='db'){
       if(id){
         await sb.from('dashboards').update({name:name}).eq('id', id);
+        logActivity('updated', 'dashboard', name);
         return id;
       }
       var res = await sb.from('dashboards').insert({name:name, card_ids:[]}).select().single();
       if(res.error) throw res.error;
       this.dashboards[res.data.id] = {id:res.data.id, name:name, cardIds:[], createdAt:Date.now()};
+      logActivity('created', 'dashboard', name);
       return res.data.id;
     } else {
       id = id || uid();
@@ -618,6 +635,7 @@ var Store = {
     if(this.mode==='db'){
       var payload = {dashboard_id:card.dashboardId, dataset_id:card.datasetId, type:card.type, title:card.title, x_field:card.xField, y_field:card.yField, agg:card.agg};
       var id;
+      var wasNew = !card.id;
       if(card.id){
         await sb.from('cards').update(payload).eq('id', card.id);
         id = card.id;
@@ -634,6 +652,7 @@ var Store = {
         await sb.from('dashboards').update({card_ids:ids}).eq('id', card.dashboardId);
         if(this.dashboards[card.dashboardId]) this.dashboards[card.dashboardId].cardIds = ids;
       }
+      logActivity(wasNew?'created':'updated', 'chart', card.title);
       return id;
     } else {
       card.id = card.id || uid();
@@ -757,10 +776,10 @@ function renderChartInto(canvas, card, rows, columns){
   var gridColor = cssVar('--grid-line') || 'rgba(0,0,0,0.07)';
   var textColor = cssVar('--ink-soft') || '#666';
 
-  if(card.type==='pie'){
+  if(card.type==='pie' || card.type==='donut'){
     var agg1 = aggregate(rows, card.xField, card.yField, colType[card.xField], card.agg||'sum');
     var top = agg1.labels.map(function(l,i){ return {l:l, v:agg1.data[i]}; }).sort(function(a,b){return b.v-a.v;}).slice(0,8);
-    chartInstances[card.id] = new Chart(canvas, {type:'pie', data:{labels:top.map(function(t){return t.l;}), datasets:[{data:top.map(function(t){return t.v;}), backgroundColor:pal, borderColor:cssVar('--surface')||'#fff', borderWidth:2}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{color:textColor, boxWidth:10, font:{family:"IBM Plex Sans", size:11}}}}}});
+    chartInstances[card.id] = new Chart(canvas, {type:'pie', data:{labels:top.map(function(t){return t.l;}), datasets:[{data:top.map(function(t){return t.v;}), backgroundColor:pal, borderColor:cssVar('--surface')||'#fff', borderWidth:2}]}, options:{responsive:true, maintainAspectRatio:false, cutout: card.type==='donut' ? '58%' : 0, plugins:{legend:{position:'bottom', labels:{color:textColor, boxWidth:10, font:{family:"IBM Plex Sans", size:11}}}}, onClick:function(evt, elements){ if(elements && elements.length){ openDrilldown(card, top[elements[0].index].l); } }}});
   } else if(card.type==='scatter'){
     var pts = rows.slice(0,1200).map(function(r){ return {x:coerceNumber(r[card.xField]), y:coerceNumber(r[card.yField])}; }).filter(function(p){ return !isNaN(p.x)&&!isNaN(p.y); });
     chartInstances[card.id] = new Chart(canvas, {type:'scatter', data:{datasets:[{label:card.title, data:pts, backgroundColor:pal[0]}]}, options:{responsive:true, maintainAspectRatio:false, scales:{x:{title:{display:true,text:card.xField,color:textColor,font:{family:"IBM Plex Sans"}},ticks:{color:textColor},grid:{color:gridColor}}, y:{title:{display:true,text:card.yField,color:textColor,font:{family:"IBM Plex Sans"}},ticks:{color:textColor},grid:{color:gridColor}}}, plugins:{legend:{display:false}}}});
@@ -768,11 +787,52 @@ function renderChartInto(canvas, card, rows, columns){
     var agg2 = aggregate(rows, card.xField, card.yField, colType[card.xField], card.agg||'sum');
     var labels = agg2.labels, data = agg2.data;
     if(labels.length > 30){ labels = labels.slice(0,30); data = data.slice(0,30); }
-    chartInstances[card.id] = new Chart(canvas, {type: card.type, data:{labels:labels, datasets:[{label:card.title, data:data, backgroundColor: card.type==='bar'? pal[0] : 'transparent', borderColor:pal[0], borderWidth:2, tension:0.25, fill:false, pointRadius: card.type==='line'?2:0}]}, options:{responsive:true, maintainAspectRatio:false, scales:{x:{ticks:{color:textColor, maxRotation:50, minRotation:0, font:{family:"IBM Plex Mono", size:10.5}}, grid:{color:gridColor}}, y:{ticks:{color:textColor, font:{family:"IBM Plex Mono", size:10.5}}, grid:{color:gridColor}, beginAtZero:true}}, plugins:{legend:{display:false}}}});
+    var isHBar = card.type==='hbar';
+    var isArea = card.type==='area';
+    var chartJsType = isHBar ? 'bar' : (isArea ? 'line' : card.type);
+    var fillColor = pal[0];
+    var areaFill = isArea ? fillColor+'33' : 'transparent'; // ~20% opacity fill for area charts
+    chartInstances[card.id] = new Chart(canvas, {
+      type: chartJsType,
+      data:{labels:labels, datasets:[{label:card.title, data:data, backgroundColor: (card.type==='bar'||isHBar)? pal[0] : areaFill, borderColor:pal[0], borderWidth:2, tension:0.25, fill:isArea, pointRadius: (card.type==='line'||isArea)?2:0}]},
+      options:{responsive:true, maintainAspectRatio:false, indexAxis: isHBar ? 'y' : 'x',
+        scales:{x:{ticks:{color:textColor, maxRotation:50, minRotation:0, font:{family:"IBM Plex Mono", size:10.5}}, grid:{color:gridColor}, beginAtZero:isHBar}, y:{ticks:{color:textColor, font:{family:"IBM Plex Mono", size:10.5}}, grid:{color:gridColor}, beginAtZero:!isHBar}},
+        plugins:{legend:{display:false}},
+        onClick: function(evt, elements){ if(elements && elements.length){ openDrilldown(card, labels[elements[0].index]); } }
+      }
+    });
   }
 }
 
-/* ================= DATA PARSING ================= */
+function openDrilldown(card, clickedLabel){
+  var ds = Store.datasets[card.datasetId];
+  if(!ds) return;
+  var rows = Store.getRows(card.datasetId);
+  var colType = {}; (ds.columns||[]).forEach(function(c){ colType[c.name]=c.type; });
+  var isDateX = colType[card.xField]==='date';
+  var matched = rows.filter(function(r){
+    var key = r[card.xField];
+    if(key===undefined || key===null || key==='') key = '(empty)';
+    if(isDateX) key = monthBin(key);
+    return String(key)===String(clickedLabel);
+  });
+  var cols = ds.columns||[];
+  var sample = matched.slice(0,200);
+  var html = '<div class="modal-head"><h3>'+esc(card.xField)+': '+esc(clickedLabel)+'</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body">'+
+    '<div class="preview-note">'+matched.length+' matching row(s)'+(matched.length>sample.length?' — showing first '+sample.length:'')+'</div>'+
+    '<div class="table-wrap" style="max-height:55vh;"><table class="data-table"><thead><tr>'+
+    cols.map(function(c){ return '<th>'+esc(c.name)+'</th>'; }).join('')+
+    '</tr></thead><tbody>'+
+    sample.map(function(r){ return '<tr>'+cols.map(function(c){ return '<td>'+esc(r[c.name])+'</td>'; }).join('')+'</tr>'; }).join('')+
+    '</tbody></table></div></div><div class="modal-foot"><span></span><button class="btn" id="drilldown-export">Download these rows as CSV</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('drilldown-export').onclick = function(){
+      var colNames = cols.map(function(c){return c.name;});
+      offerDownload((card.title||'drilldown').replace(/[^a-z0-9-_]+/gi,'_')+'_'+String(clickedLabel).replace(/[^a-z0-9-_]+/gi,'_')+'.csv', toCSV(colNames, matched));
+    };
+  });
+}
 function parseCSVText(text, cb){
   Papa.parse(text, {header:true, skipEmptyLines:true, dynamicTyping:false, complete:function(res){ cb(res.meta.fields||[], res.data); }, error:function(){ toast('Could not parse that file.', true); }});
 }
@@ -880,6 +940,7 @@ function renderAll(){
   if(MODULES[state.section]){ renderModuleSection(state.section, title, sub, actions, canvas); return; }
   if(state.section==='documents'){ renderDocumentsSection(title, sub, actions, canvas); return; }
   if(state.section==='reports'){ renderReportsSection(title, sub, actions, canvas); return; }
+  if(state.section==='audit-trail'){ renderActivityLogSection(title, sub, actions, canvas); return; }
 
   var hasAnyDataset = Object.keys(Store.datasets).length>0;
 
@@ -959,6 +1020,7 @@ function confirmDeleteDataset(id){
     delete Store.datasets[id];
     state.view='home'; state.currentDatasetId=null;
     toast('Dataset deleted.');
+    logActivity('deleted', 'dataset', d.name);
     renderAll();
   });
 }
@@ -1106,7 +1168,7 @@ function downloadCardData(card){
 }
 function deleteCardConfirm(card){
   if(!confirm('Delete this chart?')) return;
-  Store.deleteCard(card.id, card.dashboardId).then(function(){ delete Store.cards[card.id]; renderAll(); });
+  Store.deleteCard(card.id, card.dashboardId).then(function(){ delete Store.cards[card.id]; logActivity('deleted', 'chart', card.title); renderAll(); });
 }
 function renameDashboard(id){
   var d = Store.dashboards[id];
@@ -1121,6 +1183,7 @@ function confirmDeleteDashboard(id){
     delete Store.dashboards[id];
     state.view='home'; state.currentDashboardId=null;
     toast('Dashboard deleted.');
+    logActivity('deleted', 'dashboard', d.name);
     renderAll();
   });
 }
@@ -1362,8 +1425,12 @@ function renderModuleTable(sectionKey, records, canvas){
   Array.prototype.forEach.call(canvas.querySelectorAll('[data-delete-record]'), function(btn){
     btn.onclick = function(){
       if(!confirm('Delete this '+cfg.singular.toLowerCase()+'?')) return;
-      Records.remove(cfg.table, btn.getAttribute('data-delete-record')).then(function(){
+      var recId = btn.getAttribute('data-delete-record');
+      var rec = records.filter(function(r){ return r.id===recId; })[0];
+      var label = rec ? rec[cfg.listFields[0]] : '';
+      Records.remove(cfg.table, recId).then(function(){
         toast(cfg.singular+' deleted.');
+        logActivity('deleted', cfg.singular.toLowerCase(), label);
         renderAll();
       }).catch(function(){ toast('Could not delete.', true); });
     };
@@ -1423,6 +1490,7 @@ async function openRecordModal(sectionKey, existing){
         await Records.save(cfg.table, values, existing ? existing.id : null);
         closeModal();
         toast(cfg.singular+' saved.');
+        logActivity(existing?'updated':'created', cfg.singular.toLowerCase(), values[cfg.listFields[0]]);
         renderAll();
       }catch(e){
         btn.disabled = false; btn.textContent = 'Save';
@@ -1484,6 +1552,7 @@ function deleteDocumentConfirm(doc){
       await sb.storage.from('documents').remove([doc.file_path]);
       await Records.remove('documents', doc.id);
       toast('Document deleted.');
+      logActivity('deleted', 'document', doc.title);
       renderAll();
     }catch(e){ toast('Could not delete that document.', true); }
   })();
@@ -1510,12 +1579,14 @@ function openDocUploadModal(){
         var path = uid()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
         var up = await sb.storage.from('documents').upload(path, file);
         if(up.error) throw up.error;
-        var payload = { title: titleInput.value.trim()||file.name, file_name:file.name, file_path:path, file_size:file.size, content_type:file.type };
+        var docTitle = titleInput.value.trim()||file.name;
+        var payload = { title: docTitle, file_name:file.name, file_path:path, file_size:file.size, content_type:file.type };
         if(Auth.user) payload.created_by = Auth.user.id;
         var ins = await sb.from('documents').insert(payload);
         if(ins.error) throw ins.error;
         closeModal();
         toast('Document uploaded.');
+        logActivity('uploaded', 'document', docTitle);
         renderAll();
       }catch(e){
         btn.disabled = false; btn.textContent = 'Upload';
@@ -1564,6 +1635,47 @@ function renderReportsSection(title, sub, actions, canvas){
       note.textContent = 'Downloaded.'; note.className = 'ask-note';
     }catch(e){ note.textContent = 'Could not export that.'; note.className='ask-note err'; }
   };
+}
+
+/* ================= AUDIT TRAIL ================= */
+function timeAgo(iso){
+  var d = new Date(iso);
+  var diff = (Date.now() - d.getTime())/1000;
+  if(diff < 60) return 'just now';
+  if(diff < 3600) return Math.floor(diff/60)+'m ago';
+  if(diff < 86400) return Math.floor(diff/3600)+'h ago';
+  if(diff < 604800) return Math.floor(diff/86400)+'d ago';
+  return d.toLocaleDateString();
+}
+function actionVerb(a){
+  if(a==='created') return 'created';
+  if(a==='updated') return 'updated';
+  if(a==='deleted') return 'deleted';
+  if(a==='uploaded') return 'uploaded';
+  return a;
+}
+async function renderActivityLogSection(title, sub, actions, canvas){
+  title.textContent = 'Audit Trail';
+  actions.appendChild(mkBtn('Refresh', function(){ renderAll(); }, ''));
+  canvas.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;">Loading…</div>';
+  if(!sb){
+    canvas.innerHTML = '<div class="empty-block">The audit trail is available once your team accounts are set up.</div>';
+    return;
+  }
+  try{
+    var res = await sb.from('activity_log').select('*').order('created_at', {ascending:false}).limit(200);
+    if(res.error) throw res.error;
+    var entries = res.data || [];
+    if(state.section!=='audit-trail') return;
+    sub.textContent = 'Most recent '+entries.length+' action(s)';
+    if(!entries.length){ canvas.innerHTML = '<div class="empty-block">No activity recorded yet \u2014 actions across the app will show up here as they happen.</div>'; return; }
+    var html = '<div class="table-wrap"><table class="data-table"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Item</th></tr></thead><tbody>';
+    entries.forEach(function(e){
+      html += '<tr><td>'+esc(timeAgo(e.created_at))+'</td><td>'+esc(e.user_email||'—')+'</td><td><span class="'+tagClassFor(e.action)+'">'+esc(actionVerb(e.action))+'</span> '+esc(e.entity_type||'')+'</td><td>'+esc(e.entity_label||'—')+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    canvas.innerHTML = html;
+  }catch(e){ canvas.innerHTML = '<div class="empty-block">Could not load the audit trail.</div>'; }
 }
 
 /* ================= TEAM MANAGEMENT ================= */
