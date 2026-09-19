@@ -169,6 +169,23 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 .ask-bar .btn{border-radius:var(--radius-pill);}
 .ask-note{font-size:12px; color:var(--ink-faint); margin-top:6px;}
 .ask-note.err{color:var(--danger);}
+
+/* ============ FREE LAYOUT CANVAS ============ */
+.dash-canvas{position:relative; min-height:200px;}
+.chart-card.free{position:absolute; margin:0; overflow:hidden;}
+.resize-handle{position:absolute; width:14px; height:14px; z-index:5; touch-action:none;}
+.resize-handle.br{right:-5px; bottom:-5px; cursor:nwse-resize;}
+.resize-handle.bl{left:-5px; bottom:-5px; cursor:nesw-resize;}
+.resize-handle.tr{right:-5px; top:-5px; cursor:nesw-resize;}
+.resize-handle.tl{left:-5px; top:-5px; cursor:nwse-resize;}
+.chart-card.free .card-head{touch-action:none;}
+
+/* ============ FILTER BAR ============ */
+.filter-bar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+.filter-chip{display:inline-flex; align-items:center; gap:6px; padding:5px 6px 5px 12px; border-radius:var(--radius-pill); background:var(--surface); border:1px solid var(--brass); font-size:12px; color:var(--ink);}
+.filter-chip b{color:var(--brass-strong); font-weight:600;}
+.filter-chip button{background:none; border:none; cursor:pointer; color:var(--ink-faint); font-size:14px; line-height:1; padding:2px 4px;}
+.filter-chip button:hover{color:var(--danger);}
 #toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:var(--radius-control); font-size:13px; z-index:60; opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;}
 #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 @media (max-width:860px){
@@ -552,7 +569,7 @@ var Store = {
         (dashRes.data||[]).forEach(function(r){ nextDash[r.id] = {id:r.id, name:r.name, cardIds:r.card_ids||[], createdAt:new Date(r.created_at).getTime()}; });
         self.dashboards = nextDash;
         var nextCards = {};
-        (cardRes.data||[]).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg}; });
+        (cardRes.data||[]).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg, posX:r.pos_x, posY:r.pos_y, width:r.width, height:r.height}; });
         self.cards = nextCards;
       }catch(e){ toast('Could not load data from Supabase — check your setup.', true); }
       finally{
@@ -634,6 +651,10 @@ var Store = {
   saveCard: async function(card){
     if(this.mode==='db'){
       var payload = {dashboard_id:card.dashboardId, dataset_id:card.datasetId, type:card.type, title:card.title, x_field:card.xField, y_field:card.yField, agg:card.agg};
+      if(card.posX!==undefined) payload.pos_x = card.posX;
+      if(card.posY!==undefined) payload.pos_y = card.posY;
+      if(card.width!==undefined) payload.width = card.width;
+      if(card.height!==undefined) payload.height = card.height;
       var id;
       var wasNew = !card.id;
       if(card.id){
@@ -807,7 +828,7 @@ function renderChartInto(canvas, card, rows, columns){
 function openDrilldown(card, clickedLabel){
   var ds = Store.datasets[card.datasetId];
   if(!ds) return;
-  var rows = Store.getRows(card.datasetId);
+  var rows = applyFilters(Store.getRows(card.datasetId), card.dashboardId, card.datasetId);
   var colType = {}; (ds.columns||[]).forEach(function(c){ colType[c.name]=c.type; });
   var isDateX = colType[card.xField]==='date';
   var matched = rows.filter(function(r){
@@ -1043,12 +1064,88 @@ function renderDashboardView(title, sub, actions, canvas){
     var askWrap = document.createElement('div'); askWrap.style.marginBottom = '18px'; askWrap.innerHTML = buildAskBarHTML();
     wrap.appendChild(askWrap);
   }
-  var gridEl = document.createElement('div'); gridEl.className = 'dash-grid'; gridEl.id = 'dash-cards';
-  if(!cardIds.length){ gridEl.innerHTML = '<div class="empty-block" style="grid-column:1/-1;">No charts yet. Ask a question above, or add a chart manually.</div>'; }
+  if(cardIds.length){
+    var filterWrap = document.createElement('div');
+    filterWrap.innerHTML = buildFilterBarHTML(dash.id);
+    wrap.appendChild(filterWrap);
+  }
+  var gridEl = document.createElement('div'); gridEl.className = 'dash-canvas'; gridEl.id = 'dash-cards';
+  if(!cardIds.length){ gridEl.innerHTML = '<div class="empty-block">No charts yet. Ask a question above, or add a chart manually.</div>'; }
   wrap.appendChild(gridEl);
   canvas.innerHTML = ''; canvas.appendChild(wrap);
-  cardIds.forEach(function(cid){ var card = Store.cards[cid]; if(card) appendCardEl(gridEl, card); });
+  cardIds.forEach(function(cid, i){ var card = Store.cards[cid]; if(card) appendCardEl(gridEl, card, dash.id, i); });
+  resizeCanvasContainer();
   wireAskBar(dash.id);
+  wireFilterBar(dash.id);
+}
+function buildFilterBarHTML(dashboardId){
+  var active = getFilters(dashboardId);
+  var chips = active.map(function(f, i){
+    return '<span class="filter-chip"><b>'+esc(f.field)+'</b>: '+esc(f.value)+'<button data-remove-filter="'+i+'">✕</button></span>';
+  }).join('');
+  return '<div class="filter-bar" id="filter-bar">'+chips+'<button class="btn btn-sm btn-ghost" id="add-filter-btn">+ Filter</button></div>';
+}
+function wireFilterBar(dashboardId){
+  var bar = document.getElementById('filter-bar');
+  if(!bar) return;
+  Array.prototype.forEach.call(bar.querySelectorAll('[data-remove-filter]'), function(btn){
+    btn.onclick = function(){
+      var idx = parseInt(btn.getAttribute('data-remove-filter'));
+      dashboardFilters[dashboardId].splice(idx, 1);
+      renderAll();
+    };
+  });
+  var addBtn = document.getElementById('add-filter-btn');
+  if(addBtn) addBtn.onclick = function(){ openFilterModal(dashboardId); };
+}
+function openFilterModal(dashboardId){
+  var datasetIds = {}; (Store.dashboards[dashboardId].cardIds||[]).forEach(function(cid){ var c = Store.cards[cid]; if(c) datasetIds[c.datasetId]=1; });
+  var datasets = Object.keys(datasetIds).map(function(id){ return Store.datasets[id]; }).filter(Boolean);
+  if(!datasets.length){ toast('Add a chart first.', true); return; }
+  var html = '<div class="modal-head"><h3>Add filter</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body">'+
+    (datasets.length>1 ? '<div class="field"><label>Dataset</label><select id="filter-dataset">'+datasets.map(function(d){return '<option value="'+d.id+'">'+esc(d.name)+'</option>';}).join('')+'</select></div>' : '')+
+    '<div class="field"><label>Field</label><select id="filter-field"></select></div>'+
+    '<div class="field"><label>Value</label><select id="filter-value"></select></div>'+
+    '</div><div class="modal-foot"><span></span><button class="btn btn-primary" id="filter-add">Add filter</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    var dsSelect = document.getElementById('filter-dataset');
+    function currentDataset(){ return dsSelect ? Store.datasets[dsSelect.value] : datasets[0]; }
+    function populateFields(){
+      var ds = currentDataset();
+      var fieldSel = document.getElementById('filter-field');
+      fieldSel.innerHTML = (ds.columns||[]).map(function(c){ return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>'; }).join('');
+      populateValues();
+    }
+    function populateValues(){
+      var ds = currentDataset();
+      var field = document.getElementById('filter-field').value;
+      var rows = Store.getRows(ds.id);
+      var seen = {}; var vals = [];
+      for(var i=0;i<rows.length && vals.length<200;i++){
+        var v = rows[i][field];
+        if(v===undefined||v===null||v==='') continue;
+        var key = String(v);
+        if(!seen[key]){ seen[key]=1; vals.push(key); }
+      }
+      vals.sort();
+      var valSel = document.getElementById('filter-value');
+      valSel.innerHTML = vals.slice(0,200).map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join('') || '<option value="">No values found</option>';
+    }
+    if(dsSelect) dsSelect.onchange = populateFields;
+    document.getElementById('filter-field').addEventListener('change', populateValues);
+    populateFields();
+    document.getElementById('filter-add').onclick = function(){
+      var ds = currentDataset();
+      var field = document.getElementById('filter-field').value;
+      var value = document.getElementById('filter-value').value;
+      if(!field || value===''){ toast('Pick a field and value.', true); return; }
+      dashboardFilters[dashboardId] = dashboardFilters[dashboardId] || [];
+      dashboardFilters[dashboardId].push({datasetId:ds.id, field:field, value:value});
+      closeModal();
+      renderAll();
+    };
+  });
 }
 function buildAskBarHTML(){
   var datasets = Object.values(Store.datasets);
@@ -1111,7 +1208,8 @@ async function askAI(dashboardId){
     if(!yField){ var numCol = (ds.columns||[]).filter(function(c){return c.type==='number';})[0]; yField = numCol ? numCol.name : colNames[0]; }
     if(chartType!=='kpi' && !xField){ var catCol = (ds.columns||[]).filter(function(c){return c.type!=='number' && c.name!==yField;})[0]; xField = catCol ? catCol.name : colNames[0]; }
     var agg = ['sum','avg','count','min','max'].indexOf(spec.agg)>-1 ? spec.agg : 'sum';
-    var card = {dashboardId:dashboardId, datasetId:dsId, type:chartType, title:spec.title||question.slice(0,60), xField:xField, yField:yField, agg:agg};
+    var slot = nextCardSlot(dashboardId);
+    var card = {dashboardId:dashboardId, datasetId:dsId, type:chartType, title:spec.title||question.slice(0,60), xField:xField, yField:yField, agg:agg, posX:slot.posX, posY:slot.posY, width:slot.width, height:slot.height};
     var newId = await Store.saveCard(card);
     card.id = newId; Store.cards[newId] = card;
     note.textContent = ''; input.value = '';
@@ -1124,14 +1222,133 @@ async function askAI(dashboardId){
     btn.disabled = false; input.disabled = false;
   }
 }
-function appendCardEl(container, card){
+/* ================= FREE LAYOUT (drag + resize) ================= */
+var MIN_CARD_W = 260, MIN_CARD_H = 200;
+function saveCardLayout(card){
+  if(!sb) { if(Store.mode==='local' && Store.local.cards[card.id]){ Object.assign(Store.local.cards[card.id], {posX:card.posX, posY:card.posY, width:card.width, height:card.height}); Store.saveLocal(); } return; }
+  sb.from('cards').update({pos_x:card.posX, pos_y:card.posY, width:card.width, height:card.height}).eq('id', card.id).then(function(){}, function(){});
+}
+function nextCardSlot(dashboardId){
+  var cardIds = (Store.dashboards[dashboardId] && Store.dashboards[dashboardId].cardIds) || [];
+  var maxBottom = 0, any = false;
+  cardIds.forEach(function(cid){
+    var c = Store.cards[cid];
+    if(c){ any = true; var bottom=(c.posY||0)+(c.height||300); if(bottom>maxBottom) maxBottom=bottom; }
+  });
+  return {posX:0, posY: any ? maxBottom+16 : 0, width:340, height:300};
+}
+function ensureCardLayout(card, fallbackIndex){
+  if(card.width===undefined || card.width===null) card.width = 340;
+  if(card.height===undefined || card.height===null) card.height = 300;
+  if(card.posX===undefined || card.posX===null || card.posY===undefined || card.posY===null){
+    card.posX = (fallbackIndex%2)*360;
+    card.posY = Math.floor(fallbackIndex/2)*320;
+    saveCardLayout(card);
+  }
+}
+function startDrag(e, el, card){
+  if(!canEdit()) return;
+  e.preventDefault();
+  var startX=e.clientX, startY=e.clientY, startLeft=card.posX||0, startTop=card.posY||0;
+  el.style.zIndex = 50;
+  function onMove(ev){
+    var dx=ev.clientX-startX, dy=ev.clientY-startY;
+    var nx=Math.max(0, startLeft+dx), ny=Math.max(0, startTop+dy);
+    el.style.left=nx+'px'; el.style.top=ny+'px';
+    card._pendingX=nx; card._pendingY=ny;
+  }
+  function onUp(){
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    el.style.zIndex='';
+    if(card._pendingX!==undefined){ card.posX=card._pendingX; card.posY=card._pendingY; saveCardLayout(card); resizeCanvasContainer(); }
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+function startResize(e, el, card, corner){
+  if(!canEdit()) return;
+  e.preventDefault(); e.stopPropagation();
+  var startX=e.clientX, startY=e.clientY;
+  var startW=card.width||340, startH=card.height||300, startLeft=card.posX||0, startTop=card.posY||0;
+  var growsLeft = (corner==='tl'||corner==='bl');
+  var growsUp = (corner==='tl'||corner==='tr');
+  el.style.zIndex = 50;
+  function onMove(ev){
+    var dx=ev.clientX-startX, dy=ev.clientY-startY;
+    if(growsLeft){ dx = Math.min(dx, startW-MIN_CARD_W); } else { dx = Math.max(dx, MIN_CARD_W-startW); }
+    if(growsUp){ dy = Math.min(dy, startH-MIN_CARD_H); } else { dy = Math.max(dy, MIN_CARD_H-startH); }
+    var nw = growsLeft ? startW-dx : startW+dx;
+    var nh = growsUp ? startH-dy : startH+dy;
+    var nx = growsLeft ? startLeft+dx : startLeft;
+    var ny = growsUp ? startTop+dy : startTop;
+    el.style.width=nw+'px'; el.style.height=nh+'px'; el.style.left=nx+'px'; el.style.top=ny+'px';
+    card._pendingW=nw; card._pendingH=nh; card._pendingX=nx; card._pendingY=ny;
+    var chart = chartInstances[card.id]; if(chart) chart.resize();
+  }
+  function onUp(){
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    el.style.zIndex='';
+    if(card._pendingW!==undefined){
+      card.width=card._pendingW; card.height=card._pendingH; card.posX=card._pendingX; card.posY=card._pendingY;
+      saveCardLayout(card); resizeCanvasContainer();
+    }
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+function makeCardDraggableResizable(el, card){
+  var head = el.querySelector('.card-head');
+  head.addEventListener('pointerdown', function(e){
+    if(e.target.closest('button')) return;
+    startDrag(e, el, card);
+  });
+  ['tl','tr','bl','br'].forEach(function(pos){
+    var handle = document.createElement('div');
+    handle.className = 'resize-handle '+pos;
+    el.appendChild(handle);
+    handle.addEventListener('pointerdown', function(e){ startResize(e, el, card, pos); });
+  });
+}
+function resizeCanvasContainer(){
+  var canvasWrap = document.getElementById('dash-cards');
+  if(!canvasWrap || !canvasWrap.classList.contains('dash-canvas')) return;
+  var maxBottom = 40;
+  Array.prototype.forEach.call(canvasWrap.children, function(el){
+    if(!el.classList || !el.classList.contains('chart-card')) return;
+    var bottom = (parseInt(el.style.top)||0) + (parseInt(el.style.height)||300);
+    if(bottom>maxBottom) maxBottom = bottom;
+  });
+  canvasWrap.style.minHeight = (maxBottom+40)+'px';
+}
+
+/* ================= LOCAL (session-only) DASHBOARD FILTERS ================= */
+var dashboardFilters = {}; // dashboardId -> array of {datasetId, field, value}
+function getFilters(dashboardId){ return dashboardFilters[dashboardId] || []; }
+function applyFilters(rows, dashboardId, datasetId){
+  var relevant = getFilters(dashboardId).filter(function(f){ return f.datasetId===datasetId; });
+  if(!relevant.length) return rows;
+  return rows.filter(function(r){
+    return relevant.every(function(f){ return String(r[f.field])===String(f.value); });
+  });
+}
+
+function appendCardEl(container, card, dashboardId, index){
   var ds = Store.datasets[card.datasetId];
+  ensureCardLayout(card, index||0);
   var el = document.createElement('div');
-  el.className = 'chart-card'+(card.type==='kpi'?' card-kpi':'')+(card.type==='table'?' card-table':'');
+  el.className = 'chart-card'+(card.type==='kpi'?' card-kpi':'')+(card.type==='table'?' card-table':'')+' free';
   el.id = 'card-'+card.id;
+  el.style.left = (card.posX||0)+'px';
+  el.style.top = (card.posY||0)+'px';
+  el.style.width = (card.width||340)+'px';
+  el.style.height = (card.height||300)+'px';
+  el.style.minHeight = '0';
   var editItems = canEdit() ? '<button data-act="edit">Edit</button><button data-act="delete">Delete</button>' : '';
-  el.innerHTML = '<div class="card-head"><h3>'+esc(card.title)+'</h3><div class="card-menu-wrap"><button class="btn btn-ghost btn-icon" data-menu-toggle>⋯</button><div class="card-menu" data-menu><button data-act="download">Download data</button>'+editItems+'</div></div></div><div class="chart-body" data-body></div>';
+  el.innerHTML = '<div class="card-head"'+(canEdit()?' style="cursor:move;"':'')+'><h3>'+esc(card.title)+'</h3><div class="card-menu-wrap"><button class="btn btn-ghost btn-icon" data-menu-toggle>⋯</button><div class="card-menu" data-menu><button data-act="download">Download data</button>'+editItems+'</div></div></div><div class="chart-body" data-body></div>';
   container.appendChild(el);
+  if(canEdit()) makeCardDraggableResizable(el, card);
   var menuToggle = el.querySelector('[data-menu-toggle]');
   var menu = el.querySelector('[data-menu]');
   menuToggle.onclick = function(ev){ ev.stopPropagation(); closeAllMenus(); menu.classList.add('open'); };
@@ -1142,14 +1359,14 @@ function appendCardEl(container, card){
   if(delBtn) delBtn.onclick = function(){ deleteCardConfirm(card); menu.classList.remove('open'); };
   var body = el.querySelector('[data-body]');
   if(!ds){ body.innerHTML = '<div style="color:var(--ink-faint);font-size:12.5px;">Source dataset was deleted.</div>'; return; }
-  var rows = Store.getRows(card.datasetId);
+  var rows = applyFilters(Store.getRows(card.datasetId), dashboardId, card.datasetId);
   var cols = ds.columns||[];
   if(card.type==='kpi'){
     var val = singleAgg(rows, card.yField, card.agg||'sum');
     body.innerHTML = '<div><div class="kpi-value num">'+fmtNum(val)+'</div><div class="kpi-label">'+esc((card.agg||'sum'))+' of '+esc(card.yField)+' · '+rows.length+' rows</div></div>';
   } else if(card.type==='table'){
     var sample = rows.slice(0,25);
-    body.innerHTML = '<div class="table-wrap" style="max-height:280px;"><table class="data-table"><thead><tr>'+cols.map(function(c){return '<th>'+esc(c.name)+'</th>';}).join('')+'</tr></thead><tbody>'+sample.map(function(r){return '<tr>'+cols.map(function(c){return '<td>'+esc(r[c.name])+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';
+    body.innerHTML = '<div class="table-wrap" style="max-height:calc(100% - 4px);"><table class="data-table"><thead><tr>'+cols.map(function(c){return '<th>'+esc(c.name)+'</th>';}).join('')+'</tr></thead><tbody>'+sample.map(function(r){return '<tr>'+cols.map(function(c){return '<td>'+esc(r[c.name])+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';
   } else {
     body.innerHTML = '<canvas></canvas>';
     var canvasEl = body.querySelector('canvas');
@@ -1207,13 +1424,16 @@ async function buildXrayDashboard(datasetId){
   var catCol = catCols.filter(function(c){ var uniq = {}; rows.forEach(function(r){ uniq[r[c.name]]=1; }); return Object.keys(uniq).length<=20; })[0];
 
   var toAdd = [];
-  toAdd.push({type:'kpi', title:'Total rows', xField:null, yField:cols[0].name, agg:'count'});
-  if(dateCol && numCol){ toAdd.push({type:'line', title:numCol.name+' over time', xField:dateCol.name, yField:numCol.name, agg:'sum'}); }
-  if(catCol && numCol){ toAdd.push({type:'bar', title:numCol.name+' by '+catCol.name, xField:catCol.name, yField:numCol.name, agg:'sum'}); }
-  else if(catCol){ toAdd.push({type:'bar', title:'Count by '+catCol.name, xField:catCol.name, yField:cols[0].name, agg:'count'}); }
+  toAdd.push({type:'kpi', title:'Total rows', xField:null, yField:cols[0].name, agg:'count', width:300, height:150});
+  if(dateCol && numCol){ toAdd.push({type:'line', title:numCol.name+' over time', xField:dateCol.name, yField:numCol.name, agg:'sum', width:700, height:320}); }
+  if(catCol && numCol){ toAdd.push({type:'bar', title:numCol.name+' by '+catCol.name, xField:catCol.name, yField:numCol.name, agg:'sum', width:700, height:320}); }
+  else if(catCol){ toAdd.push({type:'bar', title:'Count by '+catCol.name, xField:catCol.name, yField:cols[0].name, agg:'count', width:700, height:320}); }
 
+  var runningY = 0;
   for(var i=0;i<toAdd.length;i++){
     var c = toAdd[i]; c.dashboardId = dashId; c.datasetId = datasetId;
+    c.posX = 0; c.posY = runningY;
+    runningY += c.height + 16;
     var cid = await Store.saveCard(c);
     c.id = cid; Store.cards[cid] = c;
     // Note: Store.saveCard() already appends cid to the dashboard's cardIds
@@ -1355,7 +1575,8 @@ function openChartConfigModal(dashboardId, existingCard){
       var type = document.getElementById('cfg-type').value;
       var xEl = document.getElementById('cfg-x'), yEl = document.getElementById('cfg-y'), aggEl = document.getElementById('cfg-agg');
       var title = document.getElementById('cfg-title').value.trim() || 'Untitled chart';
-      var newCard = {id: existingCard ? existingCard.id : undefined, dashboardId: dashboardId, datasetId: document.getElementById('cfg-dataset').value, type: type, title: title, xField: xEl ? xEl.value : null, yField: yEl ? yEl.value : null, agg: aggEl ? aggEl.value : 'sum'};
+      var layout = existingCard ? {posX:existingCard.posX, posY:existingCard.posY, width:existingCard.width, height:existingCard.height} : nextCardSlot(dashboardId);
+      var newCard = {id: existingCard ? existingCard.id : undefined, dashboardId: dashboardId, datasetId: document.getElementById('cfg-dataset').value, type: type, title: title, xField: xEl ? xEl.value : null, yField: yEl ? yEl.value : null, agg: aggEl ? aggEl.value : 'sum', posX:layout.posX, posY:layout.posY, width:layout.width, height:layout.height};
       Store.saveCard(newCard).then(function(id){
         newCard.id = id; Store.cards[id] = newCard;
         if(Store.dashboards[dashboardId] && (Store.dashboards[dashboardId].cardIds||[]).indexOf(id)===-1){
