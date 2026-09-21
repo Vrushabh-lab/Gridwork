@@ -21,6 +21,7 @@
   --teal:#1F5C56; --coral:#A5402F;
   --danger:#A5402F; --danger-bg:rgba(165,64,47,0.1);
   --ok:#3C7A5B; --warn:#9C6B1E; --warn-bg:rgba(156,107,30,0.1);
+  --ok-bg:rgba(60,122,91,0.1);
   --radius-card:10px; --radius-control:6px; --radius-pill:999px;
   --font-display:'Fraunces',Georgia,'Times New Roman',serif;
   --font-body:'IBM Plex Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
@@ -36,6 +37,7 @@
     --teal:#4FA69B; --coral:#D9695A;
     --danger:#D9695A; --danger-bg:rgba(217,105,90,0.14);
     --ok:#5FBF8F; --warn:#D9A54A; --warn-bg:rgba(217,165,74,0.14);
+    --ok-bg:rgba(95,191,143,0.14);
     --shadow-pop:0 8px 28px rgba(0,0,0,0.45);
   }
 }
@@ -47,6 +49,7 @@
   --teal:#4FA69B; --coral:#D9695A;
   --danger:#D9695A; --danger-bg:rgba(217,105,90,0.14);
   --ok:#5FBF8F; --warn:#D9A54A; --warn-bg:rgba(217,165,74,0.14);
+  --ok-bg:rgba(95,191,143,0.14);
   --shadow-pop:0 8px 28px rgba(0,0,0,0.45);
 }
 *{box-sizing:border-box;}
@@ -92,7 +95,24 @@ h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spac
 #main{flex:1; min-width:0; display:flex; flex-direction:column;}
 #topbar{display:flex; align-items:center; gap:12px; padding:14px 22px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:5; flex-wrap:wrap;}
 #hamburger{display:none; border:1px solid var(--border); background:var(--surface); border-radius:var(--radius-control); width:38px; height:38px; cursor:pointer; flex:none; color:var(--ink);}
+.icon-btn{border:1px solid var(--border); background:var(--surface); border-radius:var(--radius-control); width:38px; height:38px; cursor:pointer; flex:none; color:var(--ink); display:inline-flex; align-items:center; justify-content:center; font-size:15px;}
+.icon-btn:hover{border-color:var(--ink-faint);}
+.profile-menu-wrap{position:relative; flex:none; margin-left:4px;}
+.profile-btn{border-radius:50%; background:var(--brass); color:var(--brass-ink); border-color:var(--brass); font-weight:700; font-size:13px;}
+.profile-btn:hover{background:var(--brass-strong); border-color:var(--brass-strong);}
+.profile-dropdown{display:none; position:absolute; right:0; top:46px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-control); box-shadow:var(--shadow-pop); min-width:220px; z-index:20; overflow:hidden;}
+.profile-dropdown.open{display:block;}
+.profile-dropdown-head{padding:12px 14px; border-bottom:1px solid var(--border);}
+.profile-name{font-weight:600; font-size:13.5px; margin-bottom:2px;}
+.profile-email-sub{color:var(--ink-faint); font-size:11.5px; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.profile-dropdown button{display:block; width:100%; text-align:left; padding:10px 14px; background:none; border:none; font-size:13px; color:var(--ink); cursor:pointer;}
+.profile-dropdown button:hover{background:var(--surface-2);}
 #topbar h2{font-size:19px; flex:none;}
+.breadcrumb{font-size:11.5px; color:var(--ink-faint); margin-bottom:2px; display:flex; align-items:center; gap:5px; min-height:14px;}
+.breadcrumb button{background:none; border:none; padding:0; font-size:11.5px; color:var(--ink-faint); cursor:pointer; font-family:var(--font-mono);}
+.breadcrumb button:hover{color:var(--brass); text-decoration:underline;}
+.breadcrumb span.sep{color:var(--border);}
+.breadcrumb span.current{color:var(--ink-soft); font-family:var(--font-mono);}
 #topbar .sub{color:var(--ink-faint); font-size:12.5px;}
 .topbar-spacer{flex:1;}
 .topbar-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
@@ -118,6 +138,10 @@ select{appearance:none; background-image:linear-gradient(45deg, transparent 50%,
 .tag.t-number{color:var(--teal); border-color:var(--teal);}
 .tag.t-date{color:var(--brass-strong); border-color:var(--brass);}
 .tag.t-string{color:var(--ink-faint);}
+.tag.status-danger{color:var(--danger); border-color:var(--danger); background:var(--danger-bg);}
+.tag.status-warn{color:var(--warn); border-color:var(--warn); background:var(--warn-bg);}
+.tag.status-ok{color:var(--ok); border-color:var(--ok); background:var(--ok-bg);}
+.tag.status-neutral{color:var(--ink-faint);}
 .tabs{display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:16px;}
 .tab{padding:9px 4px; margin-right:18px; background:none; border:none; border-bottom:2px solid transparent; color:var(--ink-faint); font-size:13.5px; cursor:pointer; font-weight:500;}
 .tab.active{color:var(--ink); border-color:var(--brass);}
@@ -141,12 +165,23 @@ table.data-table{border-collapse:collapse; width:100%; font-size:12.5px;}
 table.data-table th{position:sticky; top:0; background:var(--surface-2); text-align:left; padding:8px 10px; font-weight:600; border-bottom:1px solid var(--border); white-space:nowrap;}
 table.data-table td{padding:7px 10px; border-bottom:1px solid var(--grid-line); font-family:var(--font-mono); white-space:nowrap;}
 table.data-table tr:last-child td{border-bottom:none;}
+table.module-table tbody tr{transition:background .12s ease;}
+table.module-table tbody tr:hover{background:var(--surface-2);}
+table.module-table td, table.module-table th{white-space:normal;}
+table.module-table td:first-child, table.module-table th:first-child{padding-left:13px;}
+table.data-table tbody tr{transition:background-color .12s ease;}
+table.data-table tbody tr:hover{background:var(--surface-2);}
+table.data-table td.status-edge{box-shadow:inset 4px 0 0 0 var(--edge-color, transparent);}
 .hero{max-width:640px; margin:6vh auto; text-align:left;}
 .hero .kicker{color:var(--brass-strong); font-family:var(--font-mono); font-size:12.5px; margin-bottom:10px;}
 .hero h2{font-size:38px; line-height:1.08; margin-bottom:14px;}
 .hero p{color:var(--ink-soft); font-size:15px; max-width:52ch; margin-bottom:22px;}
 .hero-actions{display:flex; gap:10px; flex-wrap:wrap;}
-.empty-block{border:1px dashed var(--border); border-radius:var(--radius-card); padding:40px 24px; text-align:center; color:var(--ink-faint);}
+.empty-block{border:1px dashed var(--border); border-radius:var(--radius-card); padding:40px 24px; text-align:center; color:var(--ink-faint); line-height:1.6;}
+.section-intro{color:var(--ink-soft); font-size:13px; line-height:1.5; max-width:70ch; margin:-6px 0 18px;}
+.skeleton-row{height:38px; border-radius:6px; background:linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%); background-size:400% 100%; animation:skeleton-shimmer 1.4s ease infinite; margin-bottom:8px;}
+@keyframes skeleton-shimmer{0%{background-position:100% 50%;} 100%{background-position:0% 50%;}}
+@media (prefers-reduced-motion: reduce){ .skeleton-row{animation:none; opacity:.6;} }
 .modal-backdrop{position:fixed; inset:0; background:rgba(10,11,13,0.46); display:none; align-items:flex-start; justify-content:center; z-index:40; padding:5vh 16px 5vh;}
 .modal-backdrop.open{display:flex;}
 .modal{background:var(--surface); border-radius:var(--radius-card); border:1px solid var(--border); width:100%; max-width:620px; max-height:90vh; display:flex; flex-direction:column; box-shadow:var(--shadow-pop);}
@@ -187,6 +222,15 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 .filter-chip button{background:none; border:none; cursor:pointer; color:var(--ink-faint); font-size:14px; line-height:1; padding:2px 4px;}
 .filter-chip button:hover{color:var(--danger);}
 #toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:var(--radius-control); font-size:13px; z-index:60; opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;}
+
+/* ============ SKELETON LOADER ============ */
+.skeleton-list{display:flex; flex-direction:column; gap:8px;}
+.skeleton-row{height:38px; border-radius:var(--radius-control); background:linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%); background-size:400% 100%; animation:skeleton-pulse 1.4s ease infinite;}
+@keyframes skeleton-pulse{0%{background-position:100% 50%;} 100%{background-position:0% 50%;}}
+@media (prefers-reduced-motion: reduce){ .skeleton-row{animation:none; background:var(--surface-2);} }
+
+/* ============ MODULE SECTION INTRO ============ */
+.section-intro{color:var(--ink-faint); font-size:13px; max-width:64ch; margin:0 0 18px; line-height:1.5;}
 #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 @media (max-width:860px){
   #sidebar{position:fixed; left:0; top:0; bottom:0; z-index:35; transform:translateX(-100%); box-shadow:var(--shadow-pop);}
@@ -255,46 +299,48 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 <div id="app">
   <aside id="sidebar">
     <div class="brand">
-      <div class="brand-mark"><span class="glyph"></span><h1>Gridwork</h1></div>
-      <p>Audit workspace</p>
+      <div class="brand-mark"><span class="glyph"></span><h1 class="brand-text">Gridwork</h1></div>
+      <p class="brand-text">Audit workspace</p>
     </div>
     <div class="nav-section">
       <ul class="nav-list" id="nav-sections"></ul>
     </div>
     <div id="dashboard-subnav">
       <div class="nav-section">
-        <div class="nav-section-head"><span>Datasets</span></div>
+        <div class="nav-section-head brand-text"><span>Datasets</span></div>
         <ul class="nav-list" id="nav-datasets"></ul>
-        <button class="nav-add" id="btn-add-data">+ Add data</button>
+        <button class="nav-add brand-text" id="btn-add-data">+ Add data</button>
       </div>
       <div class="nav-section">
-        <div class="nav-section-head"><span>Dashboards</span></div>
+        <div class="nav-section-head brand-text"><span>Dashboards</span></div>
         <ul class="nav-list" id="nav-dashboards"></ul>
-        <button class="nav-add" id="btn-add-dashboard">+ New dashboard</button>
-      </div>
-    </div>
-    <div class="account-box" id="account-box" style="display:none;">
-      <div class="account-row">
-        <span class="account-email" id="account-email"></span>
-        <span class="role-badge" id="account-role"></span>
-      </div>
-      <div class="account-links">
-        <button id="btn-manage-team">Manage team</button>
-        <button id="btn-sign-out">Sign out</button>
+        <button class="nav-add brand-text" id="btn-add-dashboard">+ New dashboard</button>
       </div>
     </div>
     <div id="sidebar-foot">
-      <div class="sync-state" id="sync-state"><span class="led off"></span><span>Starting…</span></div>
-      <button class="theme-btn" id="btn-theme">Theme</button>
+      <div class="sync-state" id="sync-state" title="Sync status"><span class="led off"></span><span class="brand-text">Starting…</span></div>
+      <button class="theme-btn" id="btn-theme" title="Toggle theme"><span>◐</span><span class="brand-text">&nbsp;Theme</span></button>
     </div>
   </aside>
   <div id="scrim"></div>
   <main id="main">
     <div id="topbar">
-      <button id="hamburger" aria-label="Open menu">☰</button>
-      <div><h2 id="topbar-title">Gridwork</h2><div class="sub" id="topbar-sub"></div></div>
+      <button id="hamburger" class="icon-btn" aria-label="Open menu">☰</button>
+      <div><div class="breadcrumb" id="breadcrumb"></div><h2 id="topbar-title">Gridwork</h2><div class="sub" id="topbar-sub"></div></div>
       <div class="topbar-spacer"></div>
       <div class="topbar-actions" id="topbar-actions"></div>
+      <div class="profile-menu-wrap" id="profile-menu-wrap" style="display:none;">
+        <button id="profile-btn" class="icon-btn profile-btn" title="Account"><span id="profile-initial">?</span></button>
+        <div class="profile-dropdown" id="profile-dropdown">
+          <div class="profile-dropdown-head">
+            <div id="profile-name" class="profile-name"></div>
+            <div id="profile-email" class="profile-email-sub"></div>
+            <span class="role-badge" id="profile-role"></span>
+          </div>
+          <button id="pm-manage-team">Manage team</button>
+          <button id="pm-sign-out">Sign out</button>
+        </div>
+      </div>
     </div>
     <div id="canvas"></div>
   </main>
@@ -342,6 +388,7 @@ var SECTIONS = [
 var MODULES = {
   'audit-plan': {
     table:'audit_plans', label:'Audit Plan', singular:'Audit',
+    description:'The audits you\'re planning or running — scope, timing, and who\'s assigned to each one. Start here; Observations, RCM, and Testing can all link back to an audit you create.',
     fields:[
       {key:'title', label:'Title', type:'text', required:true},
       {key:'scope', label:'Scope', type:'textarea'},
@@ -350,10 +397,11 @@ var MODULES = {
       {key:'auditor', label:'Auditor', type:'text'},
       {key:'status', label:'Status', type:'select', options:['Planned','In Progress','Completed','On Hold'], default:'Planned'}
     ],
-    listFields:['title','auditor','status','start_date']
+    listFields:['title','auditor','status','start_date'], statusField:'status'
   },
   'observations': {
     table:'observations', label:'Observations', singular:'Observation',
+    description:'Findings raised during an audit — what was found, how severe it is, and its status through to resolution.',
     fields:[
       {key:'title', label:'Title', type:'text', required:true},
       {key:'description', label:'Description', type:'textarea'},
@@ -363,10 +411,11 @@ var MODULES = {
       {key:'due_date', label:'Due date', type:'date'},
       {key:'audit_plan_id', label:'Related audit', type:'relation', relatedModule:'audit-plan', relatedLabel:'title'}
     ],
-    listFields:['title','severity','status','assigned_to','due_date']
+    listFields:['title','severity','status','assigned_to','due_date'], statusField:'severity'
   },
   'rcm': {
     table:'rcm_items', label:'Risk Control Matrix', singular:'RCM item',
+    description:'Maps each risk to the control meant to address it, and tracks how well that control is actually working.',
     fields:[
       {key:'risk', label:'Risk', type:'textarea', required:true},
       {key:'control', label:'Control', type:'textarea'},
@@ -375,10 +424,11 @@ var MODULES = {
       {key:'effectiveness', label:'Effectiveness', type:'select', options:['Effective','Partially Effective','Ineffective','Not Tested'], default:'Not Tested'},
       {key:'audit_plan_id', label:'Related audit', type:'relation', relatedModule:'audit-plan', relatedLabel:'title'}
     ],
-    listFields:['risk','control_owner','frequency','effectiveness']
+    listFields:['risk','control_owner','frequency','effectiveness'], statusField:'effectiveness'
   },
   'testing': {
     table:'testing_items', label:'Testing', singular:'Test',
+    description:'The actual test procedures run against a control — sample size, pass/fail result, and who ran it.',
     fields:[
       {key:'test_description', label:'Test description', type:'textarea', required:true},
       {key:'sample_size', label:'Sample size', type:'number'},
@@ -388,7 +438,7 @@ var MODULES = {
       {key:'notes', label:'Notes', type:'textarea'},
       {key:'rcm_item_id', label:'Related RCM item', type:'relation', relatedModule:'rcm', relatedLabel:'risk'}
     ],
-    listFields:['test_description','result','tester','date_tested']
+    listFields:['test_description','result','tester','date_tested'], statusField:'result'
   }
 };
 
@@ -782,10 +832,38 @@ function singleAgg(rows, yField, agg){
   if(agg==='max') return Math.max.apply(null,nums);
   return nums.reduce(function(a,b){return a+b;},0);
 }
+function skeletonHTML(rows){
+  var n = rows || 4;
+  var out = '';
+  for(var i=0;i<n;i++){ out += '<div class="skeleton-row" style="width:'+(100-i*6)+'%;"></div>'; }
+  return out;
+}
+function setBreadcrumb(parts){
+  var el = document.getElementById('breadcrumb');
+  if(!el) return;
+  if(!parts || !parts.length){ el.innerHTML=''; return; }
+  el.innerHTML = parts.map(function(p, i){
+    var isLast = i===parts.length-1;
+    if(isLast) return '<span class="current">'+esc(p.label)+'</span>';
+    return '<button data-crumb="'+i+'">'+esc(p.label)+'</button><span class="sep">/</span>';
+  }).join('');
+  parts.forEach(function(p, i){
+    var btn = el.querySelector('[data-crumb="'+i+'"]');
+    if(btn) btn.onclick = p.onClick;
+  });
+}
 function fmtNum(n){
   if(typeof n!=='number' || isNaN(n)) return String(n);
   if(Math.abs(n) >= 1000) return n.toLocaleString(undefined,{maximumFractionDigits:1});
   return (Math.round(n*100)/100).toString();
+}
+function autoChartTitle(type, xField, yField, agg, datasetName){
+  var aggLabel = {sum:'Sum', avg:'Average', count:'Count', min:'Minimum', max:'Maximum'}[agg] || 'Sum';
+  if(type==='kpi') return aggLabel+' of '+(yField||'value');
+  if(type==='table') return (datasetName||'Data')+' — table';
+  if(type==='scatter') return (yField||'')+' vs '+(xField||'');
+  if(type==='pie' || type==='donut') return (yField||'')+' by '+(xField||'');
+  return aggLabel+' of '+(yField||'')+' by '+(xField||'');
 }
 
 /* ================= CHART RENDERING ================= */
@@ -900,15 +978,18 @@ function renderSectionNav(){
   if(subnav) subnav.style.display = state.section==='dashboard' ? '' : 'none';
 }
 function renderAccountBox(){
-  var box = document.getElementById('account-box');
-  if(!box) return;
-  if(!sb || !Auth.user){ box.style.display = 'none'; return; }
-  box.style.display = '';
-  document.getElementById('account-email').textContent = Auth.displayName();
-  var roleEl = document.getElementById('account-role');
+  var wrap = document.getElementById('profile-menu-wrap');
+  if(!wrap) return;
+  if(!sb || !Auth.user){ wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  var name = Auth.displayName() || '?';
+  document.getElementById('profile-initial').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('profile-name').textContent = name;
+  document.getElementById('profile-email').textContent = Auth.user.email || '';
+  var roleEl = document.getElementById('profile-role');
   roleEl.textContent = Auth.isEditor() ? 'Editor' : 'Viewer';
   roleEl.className = 'role-badge'+(Auth.isEditor()?' editor':'');
-  document.getElementById('btn-manage-team').style.display = Auth.isEditor() ? '' : 'none';
+  document.getElementById('pm-manage-team').style.display = Auth.isEditor() ? '' : 'none';
 }
 function renderSidebar(){
   renderSectionNav();
@@ -956,7 +1037,7 @@ function renderAll(){
   var sub = document.getElementById('topbar-sub');
   var actions = document.getElementById('topbar-actions');
   var canvas = document.getElementById('canvas');
-  actions.innerHTML = ''; sub.textContent = '';
+  actions.innerHTML = ''; sub.textContent = ''; setBreadcrumb(null);
 
   if(MODULES[state.section]){ renderModuleSection(state.section, title, sub, actions, canvas); return; }
   if(state.section==='documents'){ renderDocumentsSection(title, sub, actions, canvas); return; }
@@ -999,6 +1080,11 @@ function renderDatasetsGrid(canvas){
 function renderDatasetDetail(title, sub, actions, canvas){
   var d = Store.datasets[state.currentDatasetId];
   if(!d){ state.view='home'; return renderAll(); }
+  setBreadcrumb([
+    {label:'Dashboard', onClick:function(){ state.view='home'; renderAll(); }},
+    {label:'Datasets', onClick:function(){ state.view='home'; renderAll(); }},
+    {label:d.name}
+  ]);
   title.textContent = d.name;
   sub.textContent = (d.rowCount||0)+' rows · '+((d.columns||[]).length)+' columns'+(d.truncated?' · trimmed to fit':'');
   actions.appendChild(mkBtn('Download CSV', function(){ downloadDatasetCSV(d); }, ''));
@@ -1036,20 +1122,26 @@ function offerDownload(filename, data){
 }
 function confirmDeleteDataset(id){
   var d = Store.datasets[id];
-  if(!confirm('Delete "'+d.name+'"? This removes it from every dashboard card that uses it.')) return;
-  Store.deleteDataset(id).then(function(){
-    delete Store.datasets[id];
-    state.view='home'; state.currentDatasetId=null;
-    toast('Dataset deleted.');
-    logActivity('deleted', 'dataset', d.name);
-    renderAll();
-  });
+  confirmModal('Delete "'+d.name+'"? This removes it from every dashboard card that uses it — that can\'t be undone.', function(){
+    Store.deleteDataset(id).then(function(){
+      delete Store.datasets[id];
+      state.view='home'; state.currentDatasetId=null;
+      toast('Dataset deleted.');
+      logActivity('deleted', 'dataset', d.name);
+      renderAll();
+    });
+  }, {danger:true, confirmLabel:'Delete dataset'});
 }
 
 /* ---- dashboard view ---- */
 function renderDashboardView(title, sub, actions, canvas){
   var dash = Store.dashboards[state.currentDashboardId];
   if(!dash){ state.view='home'; return renderAll(); }
+  setBreadcrumb([
+    {label:'Dashboard', onClick:function(){ state.view='home'; renderAll(); }},
+    {label:'Dashboards', onClick:function(){ state.view='home'; renderAll(); }},
+    {label:dash.name}
+  ]);
   title.textContent = dash.name;
   var cardIds = dash.cardIds||[];
   sub.textContent = cardIds.length+' chart(s)';
@@ -1384,25 +1476,27 @@ function downloadCardData(card){
   offerDownload((card.title||'chart').replace(/[^a-z0-9-_]+/gi,'_')+'.csv', toCSV(cols, rows));
 }
 function deleteCardConfirm(card){
-  if(!confirm('Delete this chart?')) return;
-  Store.deleteCard(card.id, card.dashboardId).then(function(){ delete Store.cards[card.id]; logActivity('deleted', 'chart', card.title); renderAll(); });
+  confirmModal('Delete this chart? This can\'t be undone.', function(){
+    Store.deleteCard(card.id, card.dashboardId).then(function(){ delete Store.cards[card.id]; logActivity('deleted', 'chart', card.title); renderAll(); });
+  }, {danger:true, confirmLabel:'Delete chart'});
 }
 function renameDashboard(id){
   var d = Store.dashboards[id];
-  var name = prompt('Dashboard name', d.name);
-  if(!name) return;
-  Store.saveDashboard(name.trim(), id).then(function(){ Store.dashboards[id].name = name.trim(); renderAll(); });
+  promptModal('Rename dashboard', d.name, function(name){
+    Store.saveDashboard(name.trim(), id).then(function(){ Store.dashboards[id].name = name.trim(); renderAll(); });
+  }, {okLabel:'Rename'});
 }
 function confirmDeleteDashboard(id){
   var d = Store.dashboards[id];
-  if(!confirm('Delete dashboard "'+d.name+'"? Its charts will be removed too.')) return;
-  Store.deleteDashboard(id).then(function(){
-    delete Store.dashboards[id];
-    state.view='home'; state.currentDashboardId=null;
-    toast('Dashboard deleted.');
-    logActivity('deleted', 'dashboard', d.name);
-    renderAll();
-  });
+  confirmModal('Delete dashboard "'+d.name+'"? Its charts will be removed too — that can\'t be undone.', function(){
+    Store.deleteDashboard(id).then(function(){
+      delete Store.dashboards[id];
+      state.view='home'; state.currentDashboardId=null;
+      toast('Dashboard deleted.');
+      logActivity('deleted', 'dashboard', d.name);
+      renderAll();
+    });
+  }, {danger:true, confirmLabel:'Delete dashboard'});
 }
 
 /* ================= NAVIGATION ================= */
@@ -1452,6 +1546,38 @@ function openModal(html, onMount){
   if(onMount) onMount(root.querySelector('.modal'));
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+
+function confirmModal(message, onYes, opts){
+  opts = opts || {};
+  var html = '<div class="modal-head"><h3>'+esc(opts.title||'Are you sure?')+'</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div>'+
+    '<div class="modal-body"><p style="color:var(--ink-soft);font-size:14px;margin:0;line-height:1.5;">'+esc(message)+'</p></div>'+
+    '<div class="modal-foot"><button class="btn" id="confirm-cancel">Cancel</button><button class="btn '+(opts.danger?'btn-danger':'btn-primary')+'" id="confirm-yes">'+esc(opts.confirmLabel||'Confirm')+'</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('confirm-cancel').onclick = closeModal;
+    document.getElementById('confirm-yes').onclick = function(){ closeModal(); onYes(); };
+  });
+}
+function promptModal(title, defaultValue, onSubmit, opts){
+  opts = opts || {};
+  var html = '<div class="modal-head"><h3>'+esc(title)+'</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div>'+
+    '<div class="modal-body"><div class="field" style="margin:0;"><input type="text" id="prompt-input" value="'+esc(defaultValue||'')+'" placeholder="'+esc(opts.placeholder||'')+'" /></div></div>'+
+    '<div class="modal-foot"><button class="btn" id="prompt-cancel">Cancel</button><button class="btn btn-primary" id="prompt-ok">'+esc(opts.okLabel||'Save')+'</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('prompt-cancel').onclick = closeModal;
+    var input = document.getElementById('prompt-input');
+    setTimeout(function(){ input.focus(); input.select(); }, 30);
+    function submit(){
+      var val = input.value.trim();
+      if(!val) return;
+      closeModal();
+      onSubmit(val);
+    }
+    document.getElementById('prompt-ok').onclick = submit;
+    input.addEventListener('keydown', function(e){ if(e.key==='Enter') submit(); });
+  });
+}
 
 function openUploadModal(){
   state.uploadTab='file'; state.uploadHeaders=[]; state.uploadRows=[]; state.uploadCols=[];
@@ -1548,7 +1674,7 @@ function openChartConfigModal(dashboardId, existingCard){
   var datasets = Object.values(Store.datasets);
   if(!datasets.length){ toast('Add a dataset first.', true); return; }
   var card = existingCard ? Object.assign({}, existingCard) : {dashboardId:dashboardId, datasetId:datasets[0].id, type:'bar', title:'', xField:'', yField:'', agg:'sum'};
-  var html = '<div class="modal-head"><h3>'+(existingCard?'Edit chart':'Add chart')+'</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body"><div class="field"><label>Title</label><input type="text" id="cfg-title" value="'+esc(card.title)+'" placeholder="e.g. Revenue by month" /></div><div class="field-row"><div class="field"><label>Dataset</label><select id="cfg-dataset">'+datasets.map(function(d){return '<option value="'+d.id+'"'+(d.id===card.datasetId?' selected':'')+'>'+esc(d.name)+'</option>';}).join('')+'</select></div><div class="field"><label>Chart type</label><select id="cfg-type">'+CHART_TYPES.map(function(t){return '<option value="'+t[0]+'"'+(t[0]===card.type?' selected':'')+'>'+t[1]+'</option>';}).join('')+'</select></div></div><div id="cfg-fields"></div></div><div class="modal-foot"><span></span><button class="btn btn-primary" id="cfg-save">Save chart</button></div>';
+  var html = '<div class="modal-head"><h3>'+(existingCard?'Edit chart':'Add chart')+'</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body"><div class="field"><label>Title</label><input type="text" id="cfg-title" value="'+esc(card.title)+'" placeholder="Leave blank to auto-name it" /></div><div class="field-row"><div class="field"><label>Dataset</label><select id="cfg-dataset">'+datasets.map(function(d){return '<option value="'+d.id+'"'+(d.id===card.datasetId?' selected':'')+'>'+esc(d.name)+'</option>';}).join('')+'</select></div><div class="field"><label>Chart type</label><select id="cfg-type">'+CHART_TYPES.map(function(t){return '<option value="'+t[0]+'"'+(t[0]===card.type?' selected':'')+'>'+t[1]+'</option>';}).join('')+'</select></div></div><div id="cfg-fields"></div></div><div class="modal-foot"><span></span><button class="btn btn-primary" id="cfg-save">Save chart</button></div>';
   openModal(html, function(modal){
     document.getElementById('m-close').onclick = closeModal;
     function renderFields(){
@@ -1574,7 +1700,8 @@ function openChartConfigModal(dashboardId, existingCard){
     document.getElementById('cfg-save').onclick = function(){
       var type = document.getElementById('cfg-type').value;
       var xEl = document.getElementById('cfg-x'), yEl = document.getElementById('cfg-y'), aggEl = document.getElementById('cfg-agg');
-      var title = document.getElementById('cfg-title').value.trim() || 'Untitled chart';
+      var dsForTitle = Store.datasets[document.getElementById('cfg-dataset').value];
+      var title = document.getElementById('cfg-title').value.trim() || autoChartTitle(type, xEl?xEl.value:null, yEl?yEl.value:null, aggEl?aggEl.value:'sum', dsForTitle?dsForTitle.name:null);
       var layout = existingCard ? {posX:existingCard.posX, posY:existingCard.posY, width:existingCard.width, height:existingCard.height} : nextCardSlot(dashboardId);
       var newCard = {id: existingCard ? existingCard.id : undefined, dashboardId: dashboardId, datasetId: document.getElementById('cfg-dataset').value, type: type, title: title, xField: xEl ? xEl.value : null, yField: yEl ? yEl.value : null, agg: aggEl ? aggEl.value : 'sum', posX:layout.posX, posY:layout.posY, width:layout.width, height:layout.height};
       Store.saveCard(newCard).then(function(id){
@@ -1588,18 +1715,19 @@ function openChartConfigModal(dashboardId, existingCard){
   });
 }
 function newDashboardFlow(){
-  var name = prompt('Name this dashboard', 'New dashboard');
-  if(!name) return;
-  Store.saveDashboard(name.trim()).then(function(id){ openDashboard(id); });
+  promptModal('New dashboard', 'New dashboard', function(name){
+    Store.saveDashboard(name.trim()).then(function(id){ openDashboard(id); });
+  }, {okLabel:'Create'});
 }
 
 /* ================= GENERIC MODULE SECTIONS (Audit Plan / Observations / RCM / Testing) ================= */
 function tagClassFor(value){
   var v = String(value||'').toLowerCase();
-  if(/critical|fail|open|ineffective/.test(v)) return 'tag t-string';
-  if(/high|progress|pending|partially/.test(v)) return 'tag t-date';
-  if(/low|closed|complete|pass|effective|planned/.test(v)) return 'tag t-number';
-  return 'tag';
+  if(/critical|fail|open|ineffective|overdue/.test(v)) return 'tag status-danger';
+  if(/high|progress|pending|partially|medium/.test(v)) return 'tag status-warn';
+  if(/low|closed|complete|pass|effective|resolved/.test(v)) return 'tag status-ok';
+  if(/planned|not tested/.test(v)) return 'tag status-neutral';
+  return 'tag status-neutral';
 }
 function fieldDisplay(value, field){
   if(value===undefined || value===null || value==='') return '—';
@@ -1611,25 +1739,34 @@ async function renderModuleSection(sectionKey, title, sub, actions, canvas){
   var cfg = MODULES[sectionKey];
   title.textContent = cfg.label;
   if(canEdit()) actions.appendChild(mkBtn('+ Add '+cfg.singular, function(){ openRecordModal(sectionKey); }, 'btn-primary'));
-  canvas.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;">Loading…</div>';
+  canvas.innerHTML = (cfg.description ? '<p class="section-intro">'+esc(cfg.description)+'</p>' : '')+skeletonHTML(5);
   var records = await Records.load(cfg.table);
   if(state.section!==sectionKey) return; // user navigated away while loading
   sub.textContent = records.length+' '+(records.length===1 ? cfg.singular : cfg.label.toLowerCase());
   renderModuleTable(sectionKey, records, canvas);
 }
+function statusBarColor(value){
+  var cls = tagClassFor(value);
+  if(cls.indexOf('status-danger')>-1) return 'var(--danger)';
+  if(cls.indexOf('status-warn')>-1) return 'var(--warn)';
+  if(cls.indexOf('status-ok')>-1) return 'var(--ok)';
+  return 'transparent';
+}
 function renderModuleTable(sectionKey, records, canvas){
   var cfg = MODULES[sectionKey];
+  var intro = cfg.description ? '<p class="section-intro">'+esc(cfg.description)+'</p>' : '';
   if(!records.length){
-    canvas.innerHTML = '<div class="empty-block">No '+esc(cfg.label.toLowerCase())+' yet.'+(canEdit() ? ' Click "+ Add '+esc(cfg.singular)+'" to create the first one.' : '')+'</div>';
+    canvas.innerHTML = intro+'<div class="empty-block">No '+esc(cfg.label.toLowerCase())+' recorded yet.'+(canEdit() ? ' Click <b style="color:var(--ink-soft);">"+ Add '+esc(cfg.singular)+'"</b> above to create the first one.' : ' Ask an editor on your team to add the first one.')+'</div>';
     return;
   }
   var fieldByKey = {}; cfg.fields.forEach(function(f){ fieldByKey[f.key]=f; });
-  var html = '<div class="table-wrap"><table class="data-table"><thead><tr>'+
+  var html = intro+'<div class="table-wrap"><table class="data-table module-table"><thead><tr>'+
     cfg.listFields.map(function(k){ return '<th>'+esc(fieldByKey[k].label)+'</th>'; }).join('')+
     (canEdit() ? '<th></th>' : '')+
     '</tr></thead><tbody>';
   records.forEach(function(r){
-    html += '<tr>'+cfg.listFields.map(function(k){ return '<td>'+fieldDisplay(r[k], fieldByKey[k])+'</td>'; }).join('');
+    var barColor = cfg.statusField ? statusBarColor(r[cfg.statusField]) : 'transparent';
+    html += '<tr style="box-shadow: inset 3px 0 0 '+barColor+';">'+cfg.listFields.map(function(k){ return '<td>'+fieldDisplay(r[k], fieldByKey[k])+'</td>'; }).join('');
     if(canEdit()){
       html += '<td><button class="btn btn-ghost btn-sm" data-edit-record="'+r.id+'">Edit</button> <button class="btn btn-ghost btn-sm" data-delete-record="'+r.id+'">Delete</button></td>';
     }
@@ -1645,15 +1782,16 @@ function renderModuleTable(sectionKey, records, canvas){
   });
   Array.prototype.forEach.call(canvas.querySelectorAll('[data-delete-record]'), function(btn){
     btn.onclick = function(){
-      if(!confirm('Delete this '+cfg.singular.toLowerCase()+'?')) return;
       var recId = btn.getAttribute('data-delete-record');
       var rec = records.filter(function(r){ return r.id===recId; })[0];
       var label = rec ? rec[cfg.listFields[0]] : '';
-      Records.remove(cfg.table, recId).then(function(){
-        toast(cfg.singular+' deleted.');
-        logActivity('deleted', cfg.singular.toLowerCase(), label);
-        renderAll();
-      }).catch(function(){ toast('Could not delete.', true); });
+      confirmModal('Delete this '+cfg.singular.toLowerCase()+'? This can\'t be undone.', function(){
+        Records.remove(cfg.table, recId).then(function(){
+          toast(cfg.singular+' deleted.');
+          logActivity('deleted', cfg.singular.toLowerCase(), label);
+          renderAll();
+        }).catch(function(){ toast('Could not delete that '+cfg.singular.toLowerCase()+' — try again.', true); });
+      }, {danger:true, confirmLabel:'Delete '+cfg.singular.toLowerCase()});
     };
   });
 }
@@ -1725,15 +1863,16 @@ async function openRecordModal(sectionKey, existing){
 async function renderDocumentsSection(title, sub, actions, canvas){
   title.textContent = 'Documents';
   if(canEdit()) actions.appendChild(mkBtn('+ Upload document', openDocUploadModal, 'btn-primary'));
-  canvas.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;">Loading…</div>';
+  var docsIntro = '<p class="section-intro">Supporting evidence and workpapers — stored securely, accessed only by signed-in team members.</p>';
+  canvas.innerHTML = docsIntro+skeletonHTML(4);
   var docs = await Records.load('documents');
   if(state.section!=='documents') return;
   sub.textContent = docs.length+' document(s)';
   if(!docs.length){
-    canvas.innerHTML = '<div class="empty-block">No documents yet.'+(canEdit()?' Click "+ Upload document" to add the first one.':'')+'</div>';
+    canvas.innerHTML = docsIntro+'<div class="empty-block">No documents uploaded yet.'+(canEdit()?' Click <b style="color:var(--ink-soft);">"+ Upload document"</b> above to add the first one.':' Ask an editor on your team to upload the first one.')+'</div>';
     return;
   }
-  var html = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Title</th><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr></thead><tbody>';
+  var html = docsIntro+'<div class="table-wrap"><table class="data-table module-table"><thead><tr><th>Title</th><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr></thead><tbody>';
   docs.forEach(function(d){
     var kb = d.file_size ? Math.round(d.file_size/1024)+' KB' : '—';
     var when = d.created_at ? new Date(d.created_at).toLocaleDateString() : '—';
@@ -1767,16 +1906,17 @@ async function downloadDocument(doc){
 }
 function deleteDocumentConfirm(doc){
   if(!doc) return;
-  if(!confirm('Delete "'+doc.title+'"?')) return;
-  (async function(){
-    try{
-      await sb.storage.from('documents').remove([doc.file_path]);
-      await Records.remove('documents', doc.id);
-      toast('Document deleted.');
-      logActivity('deleted', 'document', doc.title);
-      renderAll();
-    }catch(e){ toast('Could not delete that document.', true); }
-  })();
+  confirmModal('Delete "'+doc.title+'"? This can\'t be undone.', function(){
+    (async function(){
+      try{
+        await sb.storage.from('documents').remove([doc.file_path]);
+        await Records.remove('documents', doc.id);
+        toast('Document deleted.');
+        logActivity('deleted', 'document', doc.title);
+        renderAll();
+      }catch(e){ toast('Could not delete that document — try again.', true); }
+    })();
+  }, {danger:true, confirmLabel:'Delete document'});
 }
 function openDocUploadModal(){
   var html = '<div class="modal-head"><h3>Upload document</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body">'+
@@ -1878,9 +2018,10 @@ function actionVerb(a){
 async function renderActivityLogSection(title, sub, actions, canvas){
   title.textContent = 'Audit Trail';
   actions.appendChild(mkBtn('Refresh', function(){ renderAll(); }, ''));
-  canvas.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;">Loading…</div>';
+  var trailIntro = '<p class="section-intro">A running record of who created, edited, deleted, or uploaded what, and when. This log is append-only \u2014 not even editors can alter or erase entries from inside the app.</p>';
+  canvas.innerHTML = trailIntro+skeletonHTML(6);
   if(!sb){
-    canvas.innerHTML = '<div class="empty-block">The audit trail is available once your team accounts are set up.</div>';
+    canvas.innerHTML = trailIntro+'<div class="empty-block">The audit trail is available once your team accounts are set up.</div>';
     return;
   }
   try{
@@ -1889,19 +2030,19 @@ async function renderActivityLogSection(title, sub, actions, canvas){
     var entries = res.data || [];
     if(state.section!=='audit-trail') return;
     sub.textContent = 'Most recent '+entries.length+' action(s)';
-    if(!entries.length){ canvas.innerHTML = '<div class="empty-block">No activity recorded yet \u2014 actions across the app will show up here as they happen.</div>'; return; }
-    var html = '<div class="table-wrap"><table class="data-table"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Item</th></tr></thead><tbody>';
+    if(!entries.length){ canvas.innerHTML = trailIntro+'<div class="empty-block">No activity recorded yet \u2014 actions across the app will show up here as they happen.</div>'; return; }
+    var html = trailIntro+'<div class="table-wrap"><table class="data-table module-table"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Item</th></tr></thead><tbody>';
     entries.forEach(function(e){
       html += '<tr><td>'+esc(timeAgo(e.created_at))+'</td><td>'+esc(e.user_email||'—')+'</td><td><span class="'+tagClassFor(e.action)+'">'+esc(actionVerb(e.action))+'</span> '+esc(e.entity_type||'')+'</td><td>'+esc(e.entity_label||'—')+'</td></tr>';
     });
     html += '</tbody></table></div>';
     canvas.innerHTML = html;
-  }catch(e){ canvas.innerHTML = '<div class="empty-block">Could not load the audit trail.</div>'; }
+  }catch(e){ canvas.innerHTML = trailIntro+'<div class="empty-block">Could not load the audit trail \u2014 try refreshing.</div>'; }
 }
 
 /* ================= TEAM MANAGEMENT ================= */
 function openTeamModal(){
-  var html = '<div class="modal-head"><h3>Manage team</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body" id="team-body"><div style="color:var(--ink-faint);font-size:13px;">Loading…</div></div><div class="modal-foot"><span style="font-size:12px;color:var(--ink-faint);">Only editors can change roles.</span><span></span></div>';
+  var html = '<div class="modal-head"><h3>Manage team</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body" id="team-body">'+skeletonHTML(3)+'</div><div class="modal-foot"><span style="font-size:12px;color:var(--ink-faint);">Only editors can change roles.</span><span></span></div>';
   openModal(html, function(modal){
     document.getElementById('m-close').onclick = closeModal;
     loadTeamList();
@@ -1998,8 +2139,16 @@ document.getElementById('btn-theme').onclick = function(){
   Object.keys(chartInstances).forEach(function(id){ destroyChart(id); });
   renderAll();
 };
-document.getElementById('btn-sign-out').onclick = function(){ Auth.signOut(); };
-document.getElementById('btn-manage-team').onclick = openTeamModal;
+document.getElementById('profile-btn').onclick = function(ev){
+  ev.stopPropagation();
+  document.getElementById('profile-dropdown').classList.toggle('open');
+};
+document.addEventListener('click', function(ev){
+  var dd = document.getElementById('profile-dropdown');
+  if(dd && dd.classList.contains('open') && !ev.target.closest('.profile-menu-wrap')){ dd.classList.remove('open'); }
+});
+document.getElementById('pm-sign-out').onclick = function(){ Auth.signOut(); };
+document.getElementById('pm-manage-team').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openTeamModal(); };
 
 /* ================= BOOT ================= */
 async function boot(){
