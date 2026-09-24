@@ -68,7 +68,7 @@ h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spac
 #setup-banner code{background:var(--surface); padding:1px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px;}
 
 #app{display:flex; min-height:100vh; min-height:100dvh;}
-#sidebar{width:248px; flex:none; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; height:100vh; height:100dvh; position:sticky; top:0; transition:transform .22s ease;}
+#sidebar{width:248px; flex:none; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; height:100vh; height:100dvh; position:sticky; top:0; transition:transform .22s ease, width .18s ease; overflow-x:hidden;}
 .brand{padding:20px 18px 14px; border-bottom:1px solid var(--border);}
 .brand-mark{display:flex; align-items:baseline; gap:8px;}
 .brand-mark .glyph{width:9px;height:9px;background:var(--brass);display:inline-block;transform:rotate(45deg); flex:none;}
@@ -86,6 +86,25 @@ h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spac
 .nav-item .count{color:var(--ink-faint); font-size:11.5px; font-family:var(--font-mono);}
 .nav-add{margin:6px 3px 0; padding:8px 9px; border-radius:var(--radius-control); border:1px dashed var(--border); background:transparent; color:var(--ink-soft); cursor:pointer; font-size:13px; text-align:left; min-height:38px;}
 .nav-add:hover{border-color:var(--brass); color:var(--brass);}
+.nav-item-row{display:flex; align-items:center; gap:2px;}
+.nav-item-row .nav-item{flex:1; min-width:0;}
+.nav-quick-add{flex:none; width:24px; height:24px; border:none; background:transparent; color:var(--ink-faint); border-radius:6px; cursor:pointer; font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .12s ease, background .12s ease, color .12s ease;}
+.nav-item-row:hover .nav-quick-add, .nav-quick-add:focus-visible{opacity:1;}
+.nav-quick-add:hover{background:var(--surface-2); color:var(--brass);}
+.nav-view-all{color:var(--ink-faint); font-size:12.5px;}
+#sidebar-collapse-toggle{border:1px solid var(--border); background:var(--surface); color:var(--ink-soft); border-radius:var(--radius-control); width:26px; height:26px; cursor:pointer; flex:none; font-size:12px; display:inline-flex; align-items:center; justify-content:center;}
+#sidebar-collapse-toggle:hover{border-color:var(--ink-faint); color:var(--ink);}
+@media (min-width:861px){
+  #sidebar.collapsed{width:68px;}
+  #sidebar.collapsed .brand{padding:20px 0 14px; display:flex; justify-content:center;}
+  #sidebar.collapsed .brand-mark{gap:0;}
+  #sidebar.collapsed .nav-section{padding:14px 10px 6px;}
+  #sidebar.collapsed .nav-item{justify-content:center; padding:8px;}
+  #sidebar.collapsed .nav-item .name, #sidebar.collapsed .nav-item .count, #sidebar.collapsed .nav-quick-add{display:none;}
+  #sidebar.collapsed #dashboard-subnav{display:none !important;}
+  #sidebar.collapsed #sidebar-foot{flex-direction:column; gap:8px; align-items:center;}
+  #sidebar.collapsed .sync-state .brand-text, #sidebar.collapsed .theme-btn .brand-text{display:none;}
+}
 #sidebar-foot{margin-top:auto; padding:12px 16px 16px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px;}
 .sync-state{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-faint);}
 .sync-state .led{width:6px;height:6px;border-radius:50%; flex:none;}
@@ -117,9 +136,11 @@ h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spac
 .topbar-spacer{flex:1;}
 .topbar-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
 #canvas{flex:1; padding:22px; overflow:auto; background-image:linear-gradient(var(--grid-line) 1px, transparent 1px),linear-gradient(90deg, var(--grid-line) 1px, transparent 1px); background-size:28px 28px;}
-.btn{display:inline-flex; align-items:center; justify-content:center; gap:7px; border-radius:var(--radius-control); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:13px; font-weight:500; padding:9px 14px; cursor:pointer; min-height:38px; white-space:nowrap;}
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:7px; border-radius:var(--radius-control); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:13px; font-weight:500; padding:9px 14px; cursor:pointer; min-height:38px; white-space:nowrap; transition:border-color .12s ease, background .12s ease, transform .08s ease;}
 .btn:hover{border-color:var(--ink-faint);}
+.btn:active{transform:scale(.96);}
 .btn:disabled{opacity:.5; cursor:default;}
+.btn:disabled:active{transform:none;}
 .btn-primary{background:var(--brass); border-color:var(--brass); color:var(--brass-ink); font-weight:600;}
 .btn-primary:hover{background:var(--brass-strong); border-color:var(--brass-strong);}
 .btn-ghost{background:transparent; border-color:transparent; color:var(--ink-soft);}
@@ -221,7 +242,7 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 .filter-chip b{color:var(--brass-strong); font-weight:600;}
 .filter-chip button{background:none; border:none; cursor:pointer; color:var(--ink-faint); font-size:14px; line-height:1; padding:2px 4px;}
 .filter-chip button:hover{color:var(--danger);}
-#toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:var(--radius-control); font-size:13px; z-index:60; opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;}
+#toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(10px) scale(.96); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:var(--radius-control); font-size:13px; z-index:60; opacity:0; pointer-events:none; transition:opacity .22s cubic-bezier(.34,1.56,.64,1), transform .22s cubic-bezier(.34,1.56,.64,1);}
 
 /* ============ SKELETON LOADER ============ */
 .skeleton-list{display:flex; flex-direction:column; gap:8px;}
@@ -231,7 +252,7 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 
 /* ============ MODULE SECTION INTRO ============ */
 .section-intro{color:var(--ink-faint); font-size:13px; max-width:64ch; margin:0 0 18px; line-height:1.5;}
-#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0) scale(1);}
 @media (max-width:860px){
   #sidebar{position:fixed; left:0; top:0; bottom:0; z-index:35; transform:translateX(-100%); box-shadow:var(--shadow-pop);}
   #sidebar.open{transform:translateX(0);}
@@ -298,9 +319,12 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 
 <div id="app">
   <aside id="sidebar">
-    <div class="brand">
-      <div class="brand-mark"><span class="glyph"></span><h1 class="brand-text">Gridwork</h1></div>
-      <p class="brand-text">Audit workspace</p>
+    <div class="brand" style="display:flex; align-items:flex-start; justify-content:space-between; gap:6px;">
+      <div>
+        <div class="brand-mark"><span class="glyph"></span><h1 class="brand-text">Gridwork</h1></div>
+        <p class="brand-text">Audit workspace</p>
+      </div>
+      <button id="sidebar-collapse-toggle" title="Collapse sidebar">⟨</button>
     </div>
     <div class="nav-section">
       <ul class="nav-list" id="nav-sections"></ul>
@@ -337,7 +361,9 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
             <div id="profile-email" class="profile-email-sub"></div>
             <span class="role-badge" id="profile-role"></span>
           </div>
+          <button id="pm-settings">Settings</button>
           <button id="pm-manage-team">Manage team</button>
+          <button id="pm-change-password">Change password</button>
           <button id="pm-sign-out">Sign out</button>
         </div>
       </div>
@@ -969,10 +995,16 @@ function renderSectionNav(){
   if(!el) return;
   el.innerHTML = SECTIONS.map(function(s){
     var active = state.section===s[0];
-    return '<li><button class="nav-item'+(active?' active':'')+'" data-open-section="'+s[0]+'"><span class="dot"></span><span class="name">'+esc(s[1])+'</span></button></li>';
+    var quickAdd = MODULES[s[0]] && canEdit();
+    return '<li class="nav-item-row"><button class="nav-item'+(active?' active':'')+'" data-open-section="'+s[0]+'" title="'+esc(s[1])+'"><span class="dot"></span><span class="name">'+esc(s[1])+'</span></button>'+
+      (quickAdd ? '<button class="nav-quick-add" data-quick-add="'+s[0]+'" title="Add '+esc(MODULES[s[0]].singular)+'">+</button>' : '')+
+      '</li>';
   }).join('');
   Array.prototype.forEach.call(el.querySelectorAll('[data-open-section]'), function(btn){
     btn.onclick = function(){ openSection(btn.getAttribute('data-open-section')); closeSidebarMobile(); };
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-quick-add]'), function(btn){
+    btn.onclick = function(ev){ ev.stopPropagation(); openRecordModal(btn.getAttribute('data-quick-add')); };
   });
   var subnav = document.getElementById('dashboard-subnav');
   if(subnav) subnav.style.display = state.section==='dashboard' ? '' : 'none';
@@ -990,6 +1022,7 @@ function renderAccountBox(){
   roleEl.textContent = Auth.isEditor() ? 'Editor' : 'Viewer';
   roleEl.className = 'role-badge'+(Auth.isEditor()?' editor':'');
   document.getElementById('pm-manage-team').style.display = Auth.isEditor() ? '' : 'none';
+  document.getElementById('pm-settings').style.display = Auth.isEditor() ? '' : 'none';
 }
 function renderSidebar(){
   renderSectionNav();
@@ -1005,18 +1038,22 @@ function renderSidebar(){
   datasets.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
   dashboards.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
 
-  dsList.innerHTML = datasets.map(function(d){
+  var NAV_CAP = 6;
+  dsList.innerHTML = datasets.slice(0,NAV_CAP).map(function(d){
     var active = state.view==='dataset' && state.currentDatasetId===d.id;
     return '<li><button class="nav-item'+(active?' active':'')+'" data-open-dataset="'+d.id+'"><span class="dot"></span><span class="name">'+esc(d.name)+'</span><span class="count">'+(d.rowCount||0)+'</span></button></li>';
   }).join('') || '<li style="padding:6px 9px;color:var(--ink-faint);font-size:12.5px;">No datasets yet</li>';
+  if(datasets.length>NAV_CAP) dsList.innerHTML += '<li><button class="nav-item nav-view-all" data-view-all="datasets">View all ('+datasets.length+')</button></li>';
 
-  dashList.innerHTML = dashboards.map(function(d){
+  dashList.innerHTML = dashboards.slice(0,NAV_CAP).map(function(d){
     var active = state.view==='dashboard' && state.currentDashboardId===d.id;
     return '<li><button class="nav-item'+(active?' active':'')+'" data-open-dashboard="'+d.id+'"><span class="dot"></span><span class="name">'+esc(d.name)+'</span><span class="count">'+((d.cardIds||[]).length)+'</span></button></li>';
   }).join('') || '<li style="padding:6px 9px;color:var(--ink-faint);font-size:12.5px;">No dashboards yet</li>';
+  if(dashboards.length>NAV_CAP) dashList.innerHTML += '<li><button class="nav-item nav-view-all" data-view-all="dashboards">View all ('+dashboards.length+')</button></li>';
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-open-dataset]'), function(btn){ btn.onclick = function(){ openDataset(btn.getAttribute('data-open-dataset')); closeSidebarMobile(); }; });
   Array.prototype.forEach.call(document.querySelectorAll('[data-open-dashboard]'), function(btn){ btn.onclick = function(){ openDashboard(btn.getAttribute('data-open-dashboard')); closeSidebarMobile(); }; });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-view-all]'), function(btn){ btn.onclick = function(){ state.section='dashboard'; state.view='home'; renderAll(); closeSidebarMobile(); }; });
 }
 function openSection(sec){
   state.section = sec;
@@ -1032,6 +1069,10 @@ function closeSidebarMobile(){ document.getElementById('sidebar').classList.remo
 
 /* ================= RENDER: MAIN VIEWS ================= */
 function renderAll(){
+  renderAllImpl();
+  syncHash();
+}
+function renderAllImpl(){
   renderSidebar();
   var title = document.getElementById('topbar-title');
   var sub = document.getElementById('topbar-sub');
@@ -1043,6 +1084,10 @@ function renderAll(){
   if(state.section==='documents'){ renderDocumentsSection(title, sub, actions, canvas); return; }
   if(state.section==='reports'){ renderReportsSection(title, sub, actions, canvas); return; }
   if(state.section==='audit-trail'){ renderActivityLogSection(title, sub, actions, canvas); return; }
+  if(state.section==='settings'){
+    if(!Auth.isEditor()){ state.section='dashboard'; state.view='home'; return renderAll(); }
+    renderSettingsSection(title, sub, actions, canvas); return;
+  }
 
   var hasAnyDataset = Object.keys(Store.datasets).length>0;
 
@@ -2076,6 +2121,68 @@ async function loadTeamList(){
   }catch(e){ body.innerHTML = '<div style="color:var(--danger);font-size:13px;">Could not load the team list.</div>'; }
 }
 
+/* ================= SETTINGS (editor-only) ================= */
+function renderSettingsSection(title, sub, actions, canvas){
+  title.textContent = 'Settings';
+  sub.textContent = 'Workspace configuration — visible to editors only';
+  var connected = Store.mode==='db';
+  var maskedUrl = SUPABASE_URL.replace(/^https:\/\//,'');
+  canvas.innerHTML =
+    '<div class="section-intro">Workspace-wide configuration for Gridwork. Changes to team roles and passwords take effect immediately.</div>'+
+    '<div class="chart-card" style="max-width:640px;min-height:auto;margin-bottom:16px;">'+
+      '<div class="card-head"><h3>Workspace</h3></div>'+
+      '<div class="team-row"><div class="who">Sync status<span class="email">'+(connected?'Synced across devices via Supabase':'Saved on this device only')+'</span></div><span class="role-badge'+(connected?' editor':'')+'">'+(connected?'Connected':'Local')+'</span></div>'+
+      '<div class="team-row" style="border-bottom:none;"><div class="who">Project<span class="email">'+esc(maskedUrl)+'</span></div></div>'+
+    '</div>'+
+    '<div class="chart-card" style="max-width:640px;min-height:auto;margin-bottom:16px;">'+
+      '<div class="card-head"><h3>Team</h3></div>'+
+      '<div class="team-row" style="border-bottom:none;"><div class="who">Roles &amp; access<span class="email">Add, remove, or change viewer/editor roles for your team</span></div><button class="btn btn-sm" id="settings-manage-team">Manage team</button></div>'+
+    '</div>'+
+    '<div class="chart-card" style="max-width:640px;min-height:auto;margin-bottom:16px;">'+
+      '<div class="card-head"><h3>Account</h3></div>'+
+      '<div class="team-row" style="border-bottom:none;"><div class="who">Password<span class="email">Change the password for your own account</span></div><button class="btn btn-sm" id="settings-change-password">Change password</button></div>'+
+    '</div>'+
+    '<div class="chart-card" style="max-width:640px;min-height:auto;">'+
+      '<div class="card-head"><h3>Appearance</h3></div>'+
+      '<div class="team-row" style="border-bottom:none;"><div class="who">Theme<span class="email">Switch between light, dark, and system default</span></div><button class="btn btn-sm" id="settings-theme">Toggle theme</button></div>'+
+    '</div>';
+  document.getElementById('settings-manage-team').onclick = openTeamModal;
+  document.getElementById('settings-change-password').onclick = openChangePasswordModal;
+  document.getElementById('settings-theme').onclick = function(){ document.getElementById('btn-theme').click(); };
+}
+function openChangePasswordModal(){
+  var html = '<div class="modal-head"><h3>Change password</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div>'+
+    '<div class="modal-body">'+
+      '<div class="field"><label>New password</label><input type="password" id="cp-new" placeholder="At least 6 characters" autocomplete="new-password" /></div>'+
+      '<div class="field"><label>Confirm new password</label><input type="password" id="cp-confirm" placeholder="Re-enter password" autocomplete="new-password" /></div>'+
+      '<div class="ask-note" id="cp-note"></div>'+
+    '</div>'+
+    '<div class="modal-foot"><span></span><button class="btn btn-primary" id="cp-submit">Update password</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('cp-submit').onclick = async function(){
+      var pw = document.getElementById('cp-new').value;
+      var pw2 = document.getElementById('cp-confirm').value;
+      var note = document.getElementById('cp-note');
+      if(!pw || pw.length<6){ note.className='ask-note err'; note.textContent='Password must be at least 6 characters.'; return; }
+      if(pw!==pw2){ note.className='ask-note err'; note.textContent='Passwords do not match.'; return; }
+      var btn = document.getElementById('cp-submit');
+      btn.disabled = true; note.className='ask-note'; note.textContent='Updating…';
+      try{
+        if(!sb) throw new Error('Not connected.');
+        var res = await sb.auth.updateUser({password: pw});
+        if(res.error) throw res.error;
+        note.className='ask-note'; note.textContent='Password updated.';
+        toast('Password updated.');
+        setTimeout(closeModal, 900);
+      }catch(e){
+        note.className='ask-note err'; note.textContent=(e && e.message) || 'Could not update password.';
+        btn.disabled = false;
+      }
+    };
+  });
+}
+
 /* ================= LOGIN SCREEN ================= */
 var loginMode = 'signin';
 function setLoginMode(mode){
@@ -2132,6 +2239,23 @@ document.getElementById('btn-add-data').onclick = openUploadModal;
 document.getElementById('btn-add-dashboard').onclick = newDashboardFlow;
 document.getElementById('hamburger').onclick = function(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('scrim').classList.add('open'); };
 document.getElementById('scrim').onclick = closeSidebarMobile;
+(function(){
+  var sidebarEl = document.getElementById('sidebar');
+  var toggleBtn = document.getElementById('sidebar-collapse-toggle');
+  function applyCollapsed(collapsed){
+    sidebarEl.classList.toggle('collapsed', collapsed);
+    toggleBtn.textContent = collapsed ? '⟩' : '⟨';
+    toggleBtn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  }
+  var stored = false;
+  try{ stored = localStorage.getItem('gridwork-sidebar-collapsed')==='1'; }catch(e){}
+  applyCollapsed(stored);
+  toggleBtn.onclick = function(){
+    var next = !sidebarEl.classList.contains('collapsed');
+    applyCollapsed(next);
+    try{ localStorage.setItem('gridwork-sidebar-collapsed', next ? '1' : '0'); }catch(e){}
+  };
+})();
 document.getElementById('btn-theme').onclick = function(){
   var cur = document.documentElement.getAttribute('data-theme');
   var next = cur==='dark' ? 'light' : (cur==='light' ? null : (isDark() ? 'light' : 'dark'));
@@ -2149,6 +2273,43 @@ document.addEventListener('click', function(ev){
 });
 document.getElementById('pm-sign-out').onclick = function(){ Auth.signOut(); };
 document.getElementById('pm-manage-team').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openTeamModal(); };
+document.getElementById('pm-settings').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openSection('settings'); };
+document.getElementById('pm-change-password').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openChangePasswordModal(); };
+
+/* ================= ROUTING (hash-based) ================= */
+var suppressHashChange = false;
+function computeHash(){
+  if(state.section==='dashboard'){
+    if(state.view==='dataset' && state.currentDatasetId) return '#/dataset/'+state.currentDatasetId;
+    if(state.view==='dashboard' && state.currentDashboardId) return '#/board/'+state.currentDashboardId;
+    return '#/dashboard';
+  }
+  return '#/'+state.section;
+}
+function syncHash(){
+  var h = computeHash();
+  if(location.hash!==h){ suppressHashChange = true; location.hash = h; }
+}
+function applyHashState(){
+  var raw = location.hash.replace(/^#\/?/,'');
+  var parts = raw.split('/');
+  if(parts[0]==='dataset' && parts[1] && Store.datasets[parts[1]]){
+    state.section = 'dashboard'; state.view = 'dataset'; state.currentDatasetId = parts[1];
+  } else if(parts[0]==='board' && parts[1] && Store.dashboards[parts[1]]){
+    state.section = 'dashboard'; state.view = 'dashboard'; state.currentDashboardId = parts[1];
+  } else if(parts[0]==='settings'){
+    state.section = 'settings';
+  } else if(parts[0] && SECTIONS.some(function(s){ return s[0]===parts[0]; })){
+    state.section = parts[0]; state.view = 'home';
+  } else if(raw){
+    state.section = 'dashboard'; state.view = 'home';
+  }
+}
+window.addEventListener('hashchange', function(){
+  if(suppressHashChange){ suppressHashChange = false; return; }
+  applyHashState();
+  renderAll();
+});
 
 /* ================= BOOT ================= */
 async function boot(){
@@ -2159,6 +2320,7 @@ async function boot(){
   }
   hideLoginScreen();
   await Store.init();
+  applyHashState();
   renderAll();
 }
 boot();
