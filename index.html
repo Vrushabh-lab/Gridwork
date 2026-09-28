@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>(function(){try{var t=localStorage.getItem('gridwork-theme'); if(t && t!=='light-clean'){document.documentElement.setAttribute('data-theme', t);}}catch(e){}})();</script>
 <title>Gridwork — dashboards from any data</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,44 +14,45 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 /* ============ TOKENS ============ */
+/* Default theme: Light & clean */
 :root{
-  --bg:#EDEEE9; --surface:#FFFFFF; --surface-2:#E4E5DE; --surface-3:#DBDCD3;
-  --ink:#14171C; --ink-soft:#4B505A; --ink-faint:#767C86;
-  --border:rgba(20,23,28,0.14); --grid-line:rgba(20,23,28,0.07);
-  --brass:#9C6B1E; --brass-strong:#7E5717; --brass-ink:#14171C;
-  --teal:#1F5C56; --coral:#A5402F;
-  --danger:#A5402F; --danger-bg:rgba(165,64,47,0.1);
-  --ok:#3C7A5B; --warn:#9C6B1E; --warn-bg:rgba(156,107,30,0.1);
-  --ok-bg:rgba(60,122,91,0.1);
+  --bg:#F3F5F7; --surface:#FFFFFF; --surface-2:#EEF1F4; --surface-3:#E2E6EA;
+  --ink:#151A21; --ink-soft:#4A5561; --ink-faint:#7C8794;
+  --border:rgba(21,26,33,0.12); --grid-line:rgba(21,26,33,0.06);
+  --brass:#2D74C4; --brass-strong:#1F5A9E; --brass-ink:#FFFFFF;
+  --teal:#1D7A6B; --coral:#C0532E;
+  --danger:#B03A2E; --danger-bg:rgba(176,58,46,0.08);
+  --ok:#2F7A55; --warn:#B8790E; --warn-bg:rgba(184,121,14,0.08);
+  --ok-bg:rgba(47,122,85,0.08);
   --radius-card:10px; --radius-control:6px; --radius-pill:999px;
   --font-display:'Fraunces',Georgia,'Times New Roman',serif;
   --font-body:'IBM Plex Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
   --font-mono:'IBM Plex Mono',SFMono-Regular,Consolas,'Liberation Mono',monospace;
-  --shadow-pop:0 8px 24px rgba(20,23,28,0.16);
+  --shadow-pop:0 8px 24px rgba(21,26,33,0.14);
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#15181D; --surface:#1C2028; --surface-2:#232732; --surface-3:#2B303B;
-    --ink:#ECEDE8; --ink-soft:#AFB4BD; --ink-faint:#7C8390;
-    --border:rgba(236,237,232,0.14); --grid-line:rgba(236,237,232,0.08);
-    --brass:#D9A54A; --brass-strong:#E7BC70; --brass-ink:#14171C;
-    --teal:#4FA69B; --coral:#D9695A;
-    --danger:#D9695A; --danger-bg:rgba(217,105,90,0.14);
-    --ok:#5FBF8F; --warn:#D9A54A; --warn-bg:rgba(217,165,74,0.14);
-    --ok-bg:rgba(95,191,143,0.14);
-    --shadow-pop:0 8px 28px rgba(0,0,0,0.45);
-  }
+/* Warm editorial */
+:root[data-theme="warm-editorial"]{
+  --bg:#F5F1E7; --surface:#FFFDF8; --surface-2:#EDE6D6; --surface-3:#E3DAC4;
+  --ink:#211A0F; --ink-soft:#5C5240; --ink-faint:#8A806C;
+  --border:rgba(33,26,15,0.14); --grid-line:rgba(33,26,15,0.07);
+  --brass:#9C6B1E; --brass-strong:#7E5717; --brass-ink:#211A0F;
+  --teal:#1F5C56; --coral:#A5402F;
+  --danger:#A5402F; --danger-bg:rgba(165,64,47,0.1);
+  --ok:#3C7A5B; --warn:#9C6B1E; --warn-bg:rgba(156,107,30,0.1);
+  --ok-bg:rgba(60,122,91,0.1);
+  --shadow-pop:0 8px 24px rgba(33,26,15,0.16);
 }
-:root[data-theme="dark"]{
-  --bg:#15181D; --surface:#1C2028; --surface-2:#232732; --surface-3:#2B303B;
-  --ink:#ECEDE8; --ink-soft:#AFB4BD; --ink-faint:#7C8390;
-  --border:rgba(236,237,232,0.14); --grid-line:rgba(236,237,232,0.08);
-  --brass:#D9A54A; --brass-strong:#E7BC70; --brass-ink:#14171C;
-  --teal:#4FA69B; --coral:#D9695A;
-  --danger:#D9695A; --danger-bg:rgba(217,105,90,0.14);
-  --ok:#5FBF8F; --warn:#D9A54A; --warn-bg:rgba(217,165,74,0.14);
-  --ok-bg:rgba(95,191,143,0.14);
-  --shadow-pop:0 8px 28px rgba(0,0,0,0.45);
+/* Modern dark */
+:root[data-theme="dark-modern"]{
+  --bg:#0F1115; --surface:#171A20; --surface-2:#1E222A; --surface-3:#272C36;
+  --ink:#F1F2EE; --ink-soft:#B7BDC7; --ink-faint:#7E8592;
+  --border:rgba(241,242,238,0.14); --grid-line:rgba(241,242,238,0.08);
+  --brass:#E7BC70; --brass-strong:#F3D093; --brass-ink:#141312;
+  --teal:#57B7AA; --coral:#E17A63;
+  --danger:#E17A63; --danger-bg:rgba(225,122,99,0.16);
+  --ok:#5FCB93; --warn:#E7BC70; --warn-bg:rgba(231,188,112,0.16);
+  --ok-bg:rgba(95,203,147,0.14);
+  --shadow-pop:0 10px 30px rgba(0,0,0,0.5);
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
@@ -69,11 +71,14 @@ h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spac
 
 #app{display:flex; min-height:100vh; min-height:100dvh;}
 #sidebar{width:248px; flex:none; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; height:100vh; height:100dvh; position:sticky; top:0; transition:transform .22s ease, width .18s ease; overflow-x:hidden;}
-.brand{padding:20px 18px 14px; border-bottom:1px solid var(--border);}
+.brand{padding:20px 18px 14px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:6px; transition:padding .18s ease;}
+.brand-info{overflow:hidden; min-width:0;}
 .brand-mark{display:flex; align-items:baseline; gap:8px;}
 .brand-mark .glyph{width:9px;height:9px;background:var(--brass);display:inline-block;transform:rotate(45deg); flex:none;}
 .brand h1{font-size:20px;}
 .brand p{margin:4px 0 0; color:var(--ink-faint); font-size:12px;}
+.brand-text{display:inline-block; overflow:hidden; white-space:nowrap; max-width:220px; opacity:1; transform:translateX(0); transition:opacity .18s ease, max-width .22s ease, transform .22s ease;}
+.brand p.brand-text{display:block;}
 .nav-section{padding:14px 12px 6px;}
 .nav-section-head{display:flex; align-items:center; justify-content:space-between; padding:2px 6px 8px; color:var(--ink-faint); font-size:12px;}
 .nav-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px;}
@@ -82,13 +87,17 @@ h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spac
 .nav-item.active{background:var(--surface-2); color:var(--ink); font-weight:600;}
 .nav-item .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-faint); flex:none;}
 .nav-item.active .dot{background:var(--brass);}
-.nav-item .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;}
-.nav-item .count{color:var(--ink-faint); font-size:11.5px; font-family:var(--font-mono);}
+.nav-icon{width:16px; height:16px; flex:none; display:inline-flex; align-items:center; justify-content:center; color:var(--ink-faint); transition:color .12s ease;}
+.nav-icon svg{width:100%; height:100%; display:block;}
+.nav-item:hover .nav-icon{color:var(--ink-soft);}
+.nav-item.active .nav-icon{color:var(--brass);}
+.nav-item .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; max-width:170px; opacity:1; transition:opacity .15s ease, max-width .18s ease;}
+.nav-item .count{color:var(--ink-faint); font-size:11.5px; font-family:var(--font-mono); flex:none; max-width:40px; opacity:1; overflow:hidden; transition:opacity .15s ease, max-width .18s ease, margin .18s ease;}
 .nav-add{margin:6px 3px 0; padding:8px 9px; border-radius:var(--radius-control); border:1px dashed var(--border); background:transparent; color:var(--ink-soft); cursor:pointer; font-size:13px; text-align:left; min-height:38px;}
 .nav-add:hover{border-color:var(--brass); color:var(--brass);}
 .nav-item-row{display:flex; align-items:center; gap:2px;}
 .nav-item-row .nav-item{flex:1; min-width:0;}
-.nav-quick-add{flex:none; width:24px; height:24px; border:none; background:transparent; color:var(--ink-faint); border-radius:6px; cursor:pointer; font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .12s ease, background .12s ease, color .12s ease;}
+.nav-quick-add{flex:none; width:24px; height:24px; max-width:24px; border:none; background:transparent; color:var(--ink-faint); border-radius:6px; cursor:pointer; font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; opacity:0; overflow:hidden; transition:opacity .12s ease, background .12s ease, color .12s ease, max-width .18s ease;}
 .nav-item-row:hover .nav-quick-add, .nav-quick-add:focus-visible{opacity:1;}
 .nav-quick-add:hover{background:var(--surface-2); color:var(--brass);}
 .nav-view-all{color:var(--ink-faint); font-size:12.5px;}
@@ -96,14 +105,14 @@ h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spac
 #sidebar-collapse-toggle:hover{border-color:var(--ink-faint); color:var(--ink);}
 @media (min-width:861px){
   #sidebar.collapsed{width:68px;}
-  #sidebar.collapsed .brand{padding:20px 0 14px; display:flex; justify-content:center;}
+  #sidebar.collapsed .brand{padding:18px 0 12px; justify-content:center;}
   #sidebar.collapsed .brand-mark{gap:0;}
   #sidebar.collapsed .nav-section{padding:14px 10px 6px;}
   #sidebar.collapsed .nav-item{justify-content:center; padding:8px;}
-  #sidebar.collapsed .nav-item .name, #sidebar.collapsed .nav-item .count, #sidebar.collapsed .nav-quick-add{display:none;}
+  #sidebar.collapsed .nav-item .name, #sidebar.collapsed .nav-item .count, #sidebar.collapsed .nav-quick-add{opacity:0; max-width:0; margin:0;}
   #sidebar.collapsed #dashboard-subnav{display:none !important;}
-  #sidebar.collapsed #sidebar-foot{flex-direction:column; gap:8px; align-items:center;}
-  #sidebar.collapsed .sync-state .brand-text, #sidebar.collapsed .theme-btn .brand-text{display:none;}
+  #sidebar.collapsed #sidebar-foot{justify-content:center;}
+  #sidebar.collapsed .brand-text{opacity:0; max-width:0; transform:translateX(-8px);}
 }
 #sidebar-foot{margin-top:auto; padding:12px 16px 16px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px;}
 .sync-state{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-faint);}
@@ -135,7 +144,7 @@ h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0; letter-spac
 #topbar .sub{color:var(--ink-faint); font-size:12.5px;}
 .topbar-spacer{flex:1;}
 .topbar-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-#canvas{flex:1; padding:22px; overflow:auto; background-image:linear-gradient(var(--grid-line) 1px, transparent 1px),linear-gradient(90deg, var(--grid-line) 1px, transparent 1px); background-size:28px 28px;}
+#canvas{flex:1; padding:22px; overflow:auto; background:linear-gradient(180deg, var(--surface) 0%, var(--bg) 260px);}
 .btn{display:inline-flex; align-items:center; justify-content:center; gap:7px; border-radius:var(--radius-control); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:13px; font-weight:500; padding:9px 14px; cursor:pointer; min-height:38px; white-space:nowrap; transition:border-color .12s ease, background .12s ease, transform .08s ease;}
 .btn:hover{border-color:var(--ink-faint);}
 .btn:active{transform:scale(.96);}
@@ -178,6 +187,19 @@ select{appearance:none; background-image:linear-gradient(45deg, transparent 50%,
 .card-menu button{display:block; width:100%; text-align:left; padding:9px 12px; background:none; border:none; font-size:13px; color:var(--ink); cursor:pointer;}
 .card-menu button:hover{background:var(--surface-2);}
 .chart-body{flex:1; min-height:0; position:relative;}
+.md-toolbar{display:flex; gap:4px; margin-bottom:6px;}
+.md-toolbar button{min-width:32px; height:30px; padding:0 8px; border:1px solid var(--border); background:var(--surface); color:var(--ink-soft); border-radius:var(--radius-control); cursor:pointer; font-size:12.5px;}
+.md-toolbar button:hover{border-color:var(--ink-faint); color:var(--ink);}
+.md-preview{border:1px solid var(--border); border-radius:var(--radius-control); padding:12px; background:var(--surface-2); min-height:60px; max-height:200px;}
+.text-card-body{overflow:auto; height:100%; font-size:13.5px; line-height:1.6; color:var(--ink-soft);}
+.text-card-body h2{font-size:18px; margin:0 0 8px;}
+.text-card-body h3{font-size:15.5px; margin:0 0 6px;}
+.text-card-body h4{font-size:13.5px; margin:0 0 6px; color:var(--ink);}
+.text-card-body p{margin:0 0 10px;}
+.text-card-body p:last-child{margin-bottom:0;}
+.text-card-body ul{margin:0 0 10px; padding-left:20px;}
+.text-card-body a{color:var(--brass); text-decoration:underline;}
+.text-card-body strong{color:var(--ink); font-weight:600;}
 .chart-body canvas{cursor:pointer;}
 .kpi-value{font-family:var(--font-display); font-size:40px; font-weight:600; line-height:1;}
 .kpi-label{color:var(--ink-faint); font-size:12.5px; margin-top:6px;}
@@ -267,10 +289,9 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 
 /* ============ LOGIN SCREEN ============ */
 #login-screen{
-  display:none; position:fixed; inset:0; z-index:100; background:var(--bg);
+  display:none; position:fixed; inset:0; z-index:100;
   align-items:center; justify-content:center; padding:20px;
-  background-image:linear-gradient(var(--grid-line) 1px, transparent 1px),linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size:28px 28px;
+  background:radial-gradient(1000px 620px at 50% -8%, var(--surface) 0%, var(--bg) 58%);
 }
 #login-screen.show{display:flex;}
 .login-card{
@@ -291,6 +312,14 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 .placeholder-page .kicker{color:var(--brass-strong); font-family:var(--font-mono); font-size:12px; margin-bottom:10px;}
 .placeholder-page h2{font-size:28px; margin-bottom:12px;}
 .placeholder-page p{color:var(--ink-soft); font-size:14.5px;}
+.theme-picker{display:flex; gap:10px; flex-wrap:wrap;}
+.theme-swatch{display:flex; flex-direction:column; align-items:center; gap:7px; padding:10px; border:1px solid var(--border); border-radius:var(--radius-control); background:var(--surface); cursor:pointer; width:108px; position:relative;}
+.theme-swatch:hover{border-color:var(--ink-faint);}
+.theme-swatch.active{border-color:var(--brass); box-shadow:0 0 0 1px var(--brass);}
+.theme-swatch-preview{width:70px; height:38px; border-radius:6px; border:1px solid var(--border); display:flex; align-items:flex-end; justify-content:flex-start; padding:5px;}
+.theme-swatch-preview span{width:12px; height:12px; border-radius:50%; flex:none;}
+.theme-swatch-label{font-size:11.5px; color:var(--ink-soft); text-align:center;}
+.theme-swatch-check{position:absolute; top:5px; right:7px; color:var(--brass); font-size:11px; font-weight:700;}
 .team-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--grid-line);}
 .team-row:last-child{border-bottom:none;}
 .team-row .who{font-size:13px;}
@@ -319,8 +348,8 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 
 <div id="app">
   <aside id="sidebar">
-    <div class="brand" style="display:flex; align-items:flex-start; justify-content:space-between; gap:6px;">
-      <div>
+    <div class="brand">
+      <div class="brand-info">
         <div class="brand-mark"><span class="glyph"></span><h1 class="brand-text">Gridwork</h1></div>
         <p class="brand-text">Audit workspace</p>
       </div>
@@ -343,7 +372,6 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
     </div>
     <div id="sidebar-foot">
       <div class="sync-state" id="sync-state" title="Sync status"><span class="led off"></span><span class="brand-text">Starting…</span></div>
-      <button class="theme-btn" id="btn-theme" title="Toggle theme"><span>◐</span><span class="brand-text">&nbsp;Theme</span></button>
     </div>
   </aside>
   <div id="scrim"></div>
@@ -362,7 +390,6 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
             <span class="role-badge" id="profile-role"></span>
           </div>
           <button id="pm-settings">Settings</button>
-          <button id="pm-manage-team">Manage team</button>
           <button id="pm-change-password">Change password</button>
           <button id="pm-sign-out">Sign out</button>
         </div>
@@ -408,6 +435,16 @@ var SECTIONS = [
   ["documents","Documents"],
   ["audit-trail","Audit Trail"]
 ];
+var NAV_ICONS = {
+  'dashboard':'<svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.2"/><rect x="9" y="1" width="6" height="6" rx="1.2"/><rect x="1" y="9" width="6" height="6" rx="1.2"/><rect x="9" y="9" width="6" height="6" rx="1.2"/></svg>',
+  'audit-plan':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="3" y="2.3" width="10" height="12" rx="1.2"/><path d="M6 1.3h4v2H6z" fill="currentColor" stroke="none"/><path d="M5.3 6.8h5.4M5.3 9.3h5.4M5.3 11.8h3.2"/></svg>',
+  'observations':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 8s2.6-4.6 7-4.6S15 8 15 8s-2.6 4.6-7 4.6S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg>',
+  'rcm':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M8 1.4l5.4 2v3.8c0 3.9-2.4 6.2-5.4 6.9-3-.7-5.4-3-5.4-6.9V3.4z"/></svg>',
+  'testing':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.3"/><path d="M5.1 8.3l1.9 1.9 4-4.3"/></svg>',
+  'reports':'<svg viewBox="0 0 16 16" fill="currentColor"><rect x="1.3" y="9" width="3" height="5.7" rx=".6"/><rect x="6.5" y="5" width="3" height="9.7" rx=".6"/><rect x="11.7" y="1.8" width="3" height="12.9" rx=".6"/></svg>',
+  'documents':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2.3 4.3a1 1 0 011-1h3l1.3 1.5h5.1a1 1 0 011 1V12a1 1 0 01-1 1H3.3a1 1 0 01-1-1z"/></svg>',
+  'audit-trail':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M8 4.6V8.2l2.7 1.6"/></svg>'
+};
 
 // Generic config for the four structured record modules. Each renders as a
 // list + add/edit modal using the same engine, driven by this config.
@@ -476,6 +513,32 @@ function esc(s){
   s = (s===undefined||s===null) ? '' : String(s);
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+// Small, dependency-free markdown-lite renderer for dashboard text cards.
+// Escapes everything first, then layers on a handful of safe formatting rules.
+function renderTextMd(md){
+  md = (md===undefined||md===null) ? '' : String(md);
+  var blocks = md.replace(/\r\n/g,'\n').split(/\n{2,}/);
+  return blocks.map(function(block){
+    var lines = block.split('\n');
+    var h = lines[0].match(/^(#{1,3})\s+(.*)$/);
+    if(h && lines.length===1){
+      var tag = 'h'+(h[1].length+1); // # -> h2, ## -> h3, ### -> h4 (keeps below card title's h3)
+      return '<'+tag+'>'+inlineMd(h[2])+'</'+tag+'>';
+    }
+    var isList = lines.every(function(l){ return /^[-*]\s+/.test(l) || l.trim()===''; }) && lines.some(function(l){ return /^[-*]\s+/.test(l); });
+    if(isList){
+      return '<ul>'+lines.filter(function(l){return l.trim();}).map(function(l){ return '<li>'+inlineMd(l.replace(/^[-*]\s+/,''))+'</li>'; }).join('')+'</ul>';
+    }
+    return '<p>'+lines.map(inlineMd).join('<br>')+'</p>';
+  }).join('');
+}
+function inlineMd(s){
+  s = esc(s);
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
 function toast(msg, isErr){
   var t = document.getElementById('toast');
   t.textContent = msg;
@@ -485,12 +548,20 @@ function toast(msg, isErr){
   clearTimeout(toast._h);
   toast._h = setTimeout(function(){ t.classList.remove('show'); }, 3200);
 }
-function isDark(){
-  var explicit = document.documentElement.getAttribute('data-theme');
-  if(explicit==='dark') return true;
-  if(explicit==='light') return false;
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+var THEMES = [
+  {id:'light-clean', label:'Light & clean', bg:'#FFFFFF', accent:'#2D74C4'},
+  {id:'warm-editorial', label:'Warm editorial', bg:'#F5F1E7', accent:'#9C6B1E'},
+  {id:'dark-modern', label:'Modern dark', bg:'#171A20', accent:'#E7BC70'}
+];
+function currentThemeId(){ return document.documentElement.getAttribute('data-theme') || 'light-clean'; }
+function applyTheme(id){
+  if(id==='light-clean'){ document.documentElement.removeAttribute('data-theme'); }
+  else { document.documentElement.setAttribute('data-theme', id); }
+  try{ localStorage.setItem('gridwork-theme', id); }catch(e){}
+  Object.keys(chartInstances).forEach(function(cid){ destroyChart(cid); });
+  renderAll();
 }
+function isDark(){ return currentThemeId()==='dark-modern'; }
 function palette(){
   return isDark()
     ? ['#D9A54A','#4FA69B','#D9695A','#8CA0C9','#A9C17A','#C79BCB','#7FB6D1','#E0B978']
@@ -645,7 +716,7 @@ var Store = {
         (dashRes.data||[]).forEach(function(r){ nextDash[r.id] = {id:r.id, name:r.name, cardIds:r.card_ids||[], createdAt:new Date(r.created_at).getTime()}; });
         self.dashboards = nextDash;
         var nextCards = {};
-        (cardRes.data||[]).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg, posX:r.pos_x, posY:r.pos_y, width:r.width, height:r.height}; });
+        (cardRes.data||[]).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg, content:r.content, posX:r.pos_x, posY:r.pos_y, width:r.width, height:r.height}; });
         self.cards = nextCards;
       }catch(e){ toast('Could not load data from Supabase — check your setup.', true); }
       finally{
@@ -726,7 +797,7 @@ var Store = {
   },
   saveCard: async function(card){
     if(this.mode==='db'){
-      var payload = {dashboard_id:card.dashboardId, dataset_id:card.datasetId, type:card.type, title:card.title, x_field:card.xField, y_field:card.yField, agg:card.agg};
+      var payload = {dashboard_id:card.dashboardId, dataset_id:card.datasetId||null, type:card.type, title:card.title, x_field:card.xField, y_field:card.yField, agg:card.agg, content:card.content!==undefined?card.content:null};
       if(card.posX!==undefined) payload.pos_x = card.posX;
       if(card.posY!==undefined) payload.pos_y = card.posY;
       if(card.width!==undefined) payload.width = card.width;
@@ -996,7 +1067,7 @@ function renderSectionNav(){
   el.innerHTML = SECTIONS.map(function(s){
     var active = state.section===s[0];
     var quickAdd = MODULES[s[0]] && canEdit();
-    return '<li class="nav-item-row"><button class="nav-item'+(active?' active':'')+'" data-open-section="'+s[0]+'" title="'+esc(s[1])+'"><span class="dot"></span><span class="name">'+esc(s[1])+'</span></button>'+
+    return '<li class="nav-item-row"><button class="nav-item'+(active?' active':'')+'" data-open-section="'+s[0]+'" title="'+esc(s[1])+'"><span class="nav-icon">'+(NAV_ICONS[s[0]]||'')+'</span><span class="name">'+esc(s[1])+'</span></button>'+
       (quickAdd ? '<button class="nav-quick-add" data-quick-add="'+s[0]+'" title="Add '+esc(MODULES[s[0]].singular)+'">+</button>' : '')+
       '</li>';
   }).join('');
@@ -1021,8 +1092,8 @@ function renderAccountBox(){
   var roleEl = document.getElementById('profile-role');
   roleEl.textContent = Auth.isEditor() ? 'Editor' : 'Viewer';
   roleEl.className = 'role-badge'+(Auth.isEditor()?' editor':'');
-  document.getElementById('pm-manage-team').style.display = Auth.isEditor() ? '' : 'none';
   document.getElementById('pm-settings').style.display = Auth.isEditor() ? '' : 'none';
+  document.getElementById('pm-change-password').style.display = Auth.isEditor() ? 'none' : '';
 }
 function renderSidebar(){
   renderSectionNav();
@@ -1189,9 +1260,10 @@ function renderDashboardView(title, sub, actions, canvas){
   ]);
   title.textContent = dash.name;
   var cardIds = dash.cardIds||[];
-  sub.textContent = cardIds.length+' chart(s)';
+  sub.textContent = cardIds.length+' item(s)';
   if(canEdit()){
     actions.appendChild(mkBtn('+ Add chart', function(){ openChartConfigModal(dash.id); }, 'btn-primary'));
+    actions.appendChild(mkBtn('+ Add text', function(){ openTextCardModal(dash.id); }, ''));
     actions.appendChild(mkBtn('Rename', function(){ renameDashboard(dash.id); }, ''));
     actions.appendChild(mkBtn('Delete', function(){ confirmDeleteDashboard(dash.id); }, 'btn-danger'));
   }
@@ -1236,7 +1308,7 @@ function wireFilterBar(dashboardId){
   if(addBtn) addBtn.onclick = function(){ openFilterModal(dashboardId); };
 }
 function openFilterModal(dashboardId){
-  var datasetIds = {}; (Store.dashboards[dashboardId].cardIds||[]).forEach(function(cid){ var c = Store.cards[cid]; if(c) datasetIds[c.datasetId]=1; });
+  var datasetIds = {}; (Store.dashboards[dashboardId].cardIds||[]).forEach(function(cid){ var c = Store.cards[cid]; if(c && c.type!=='text' && c.datasetId) datasetIds[c.datasetId]=1; });
   var datasets = Object.keys(datasetIds).map(function(id){ return Store.datasets[id]; }).filter(Boolean);
   if(!datasets.length){ toast('Add a chart first.', true); return; }
   var html = '<div class="modal-head"><h3>Add filter</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div><div class="modal-body">'+
@@ -1472,10 +1544,11 @@ function applyFilters(rows, dashboardId, datasetId){
 }
 
 function appendCardEl(container, card, dashboardId, index){
-  var ds = Store.datasets[card.datasetId];
+  var isText = card.type==='text';
+  var ds = isText ? null : Store.datasets[card.datasetId];
   ensureCardLayout(card, index||0);
   var el = document.createElement('div');
-  el.className = 'chart-card'+(card.type==='kpi'?' card-kpi':'')+(card.type==='table'?' card-table':'')+' free';
+  el.className = 'chart-card'+(card.type==='kpi'?' card-kpi':'')+(card.type==='table'?' card-table':'')+(isText?' card-text':'')+' free';
   el.id = 'card-'+card.id;
   el.style.left = (card.posX||0)+'px';
   el.style.top = (card.posY||0)+'px';
@@ -1483,18 +1556,22 @@ function appendCardEl(container, card, dashboardId, index){
   el.style.height = (card.height||300)+'px';
   el.style.minHeight = '0';
   var editItems = canEdit() ? '<button data-act="edit">Edit</button><button data-act="delete">Delete</button>' : '';
-  el.innerHTML = '<div class="card-head"'+(canEdit()?' style="cursor:move;"':'')+'><h3>'+esc(card.title)+'</h3><div class="card-menu-wrap"><button class="btn btn-ghost btn-icon" data-menu-toggle>⋯</button><div class="card-menu" data-menu><button data-act="download">Download data</button>'+editItems+'</div></div></div><div class="chart-body" data-body></div>';
+  var menuItems = (isText ? '' : '<button data-act="download">Download data</button>') + editItems;
+  var headTitle = isText ? (card.title ? esc(card.title) : '') : esc(card.title);
+  el.innerHTML = '<div class="card-head"'+(canEdit()?' style="cursor:move;"':'')+'><h3>'+headTitle+'</h3><div class="card-menu-wrap"><button class="btn btn-ghost btn-icon" data-menu-toggle>⋯</button><div class="card-menu" data-menu>'+menuItems+'</div></div></div><div class="chart-body" data-body></div>';
   container.appendChild(el);
   if(canEdit()) makeCardDraggableResizable(el, card);
   var menuToggle = el.querySelector('[data-menu-toggle]');
   var menu = el.querySelector('[data-menu]');
   menuToggle.onclick = function(ev){ ev.stopPropagation(); closeAllMenus(); menu.classList.add('open'); };
-  el.querySelector('[data-act=download]').onclick = function(){ downloadCardData(card); menu.classList.remove('open'); };
+  var dlBtn = el.querySelector('[data-act=download]');
+  if(dlBtn) dlBtn.onclick = function(){ downloadCardData(card); menu.classList.remove('open'); };
   var editBtn = el.querySelector('[data-act=edit]');
-  if(editBtn) editBtn.onclick = function(){ openChartConfigModal(card.dashboardId, card); menu.classList.remove('open'); };
+  if(editBtn) editBtn.onclick = function(){ if(isText){ openTextCardModal(card.dashboardId, card); } else { openChartConfigModal(card.dashboardId, card); } menu.classList.remove('open'); };
   var delBtn = el.querySelector('[data-act=delete]');
   if(delBtn) delBtn.onclick = function(){ deleteCardConfirm(card); menu.classList.remove('open'); };
   var body = el.querySelector('[data-body]');
+  if(isText){ body.innerHTML = '<div class="text-card-body">'+renderTextMd(card.content)+'</div>'; return; }
   if(!ds){ body.innerHTML = '<div style="color:var(--ink-faint);font-size:12.5px;">Source dataset was deleted.</div>'; return; }
   var rows = applyFilters(Store.getRows(card.datasetId), dashboardId, card.datasetId);
   var cols = ds.columns||[];
@@ -1758,6 +1835,70 @@ function openChartConfigModal(dashboardId, existingCard){
       });
     };
   });
+}
+function openTextCardModal(dashboardId, existingCard){
+  var card = existingCard ? Object.assign({}, existingCard) : {dashboardId:dashboardId, type:'text', title:'', content:''};
+  var html = '<div class="modal-head"><h3>'+(existingCard?'Edit text':'Add text')+'</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div>'+
+    '<div class="modal-body">'+
+      '<div class="field"><label>Title (optional)</label><input type="text" id="txt-title" value="'+esc(card.title)+'" placeholder="Leave blank for no title" /></div>'+
+      '<div class="field">'+
+        '<label>Content</label>'+
+        '<div class="md-toolbar">'+
+          '<button type="button" data-md="bold" title="Bold"><strong>B</strong></button>'+
+          '<button type="button" data-md="italic" title="Italic"><em>I</em></button>'+
+          '<button type="button" data-md="h2" title="Heading">H2</button>'+
+          '<button type="button" data-md="h3" title="Subheading">H3</button>'+
+          '<button type="button" data-md="list" title="Bullet list">≡</button>'+
+          '<button type="button" data-md="link" title="Link">🔗</button>'+
+        '</div>'+
+        '<textarea id="txt-content" rows="6" placeholder="Write a note, context, or instructions for this dashboard...">'+esc(card.content||'')+'</textarea>'+
+      '</div>'+
+      '<div class="field"><label>Preview</label><div class="text-card-body md-preview" id="txt-preview"></div></div>'+
+    '</div>'+
+    '<div class="modal-foot"><span></span><button class="btn btn-primary" id="txt-save">Save text</button></div>';
+  openModal(html, function(modal){
+    document.getElementById('m-close').onclick = closeModal;
+    var ta = document.getElementById('txt-content');
+    var preview = document.getElementById('txt-preview');
+    function updatePreview(){ preview.innerHTML = renderTextMd(ta.value) || '<span style="color:var(--ink-faint);">Nothing to preview yet.</span>'; }
+    ta.oninput = updatePreview;
+    updatePreview();
+    Array.prototype.forEach.call(modal.querySelectorAll('[data-md]'), function(btn){
+      btn.onclick = function(){ applyMdAction(ta, btn.getAttribute('data-md')); updatePreview(); };
+    });
+    document.getElementById('txt-save').onclick = function(){
+      var title = document.getElementById('txt-title').value.trim();
+      var content = ta.value;
+      if(!content.trim()){ toast('Add some content first.', true); return; }
+      var layout = existingCard ? {posX:existingCard.posX, posY:existingCard.posY, width:existingCard.width, height:existingCard.height} : nextCardSlot(dashboardId);
+      var newCard = {id: existingCard ? existingCard.id : undefined, dashboardId: dashboardId, datasetId: null, type: 'text', title: title, content: content, posX:layout.posX, posY:layout.posY, width:layout.width, height:layout.height};
+      Store.saveCard(newCard).then(function(id){
+        newCard.id = id; Store.cards[id] = newCard;
+        if(Store.dashboards[dashboardId] && (Store.dashboards[dashboardId].cardIds||[]).indexOf(id)===-1){
+          Store.dashboards[dashboardId].cardIds = (Store.dashboards[dashboardId].cardIds||[]).concat([id]);
+        }
+        closeModal(); renderAll();
+      });
+    };
+  });
+}
+function applyMdAction(ta, action){
+  var start = ta.selectionStart, end = ta.selectionEnd;
+  var val = ta.value;
+  var selected = val.slice(start, end);
+  var before = val.slice(0, start), after = val.slice(end);
+  var insert;
+  if(action==='bold'){ insert = '**'+(selected||'bold text')+'**'; }
+  else if(action==='italic'){ insert = '*'+(selected||'italic text')+'*'; }
+  else if(action==='h2'){ insert = '## '+(selected||'Heading'); }
+  else if(action==='h3'){ insert = '### '+(selected||'Subheading'); }
+  else if(action==='list'){ insert = (selected||'List item').split('\n').map(function(l){ return '- '+l; }).join('\n'); }
+  else if(action==='link'){ insert = '['+(selected||'link text')+'](https://)'; }
+  else { insert = selected; }
+  ta.value = before + insert + after;
+  ta.focus();
+  var pos = before.length + insert.length;
+  ta.setSelectionRange(pos, pos);
 }
 function newDashboardFlow(){
   promptModal('New dashboard', 'New dashboard', function(name){
@@ -2144,11 +2285,21 @@ function renderSettingsSection(title, sub, actions, canvas){
     '</div>'+
     '<div class="chart-card" style="max-width:640px;min-height:auto;">'+
       '<div class="card-head"><h3>Appearance</h3></div>'+
-      '<div class="team-row" style="border-bottom:none;"><div class="who">Theme<span class="email">Switch between light, dark, and system default</span></div><button class="btn btn-sm" id="settings-theme">Toggle theme</button></div>'+
+      '<div class="team-row" style="border-bottom:none; padding-top:0;"><div class="who">Theme<span class="email">Pick the look for the whole workspace</span></div></div>'+
+      '<div class="theme-picker">'+THEMES.map(function(t){
+        var active = currentThemeId()===t.id;
+        return '<button class="theme-swatch'+(active?' active':'')+'" data-theme-pick="'+t.id+'" title="'+esc(t.label)+'">'+
+          '<span class="theme-swatch-preview" style="background:'+t.bg+';"><span style="background:'+t.accent+';"></span></span>'+
+          '<span class="theme-swatch-label">'+esc(t.label)+'</span>'+
+          (active ? '<span class="theme-swatch-check">✓</span>' : '')+
+        '</button>';
+      }).join('')+'</div>'+
     '</div>';
   document.getElementById('settings-manage-team').onclick = openTeamModal;
   document.getElementById('settings-change-password').onclick = openChangePasswordModal;
-  document.getElementById('settings-theme').onclick = function(){ document.getElementById('btn-theme').click(); };
+  Array.prototype.forEach.call(canvas.querySelectorAll('[data-theme-pick]'), function(btn){
+    btn.onclick = function(){ applyTheme(btn.getAttribute('data-theme-pick')); };
+  });
 }
 function openChangePasswordModal(){
   var html = '<div class="modal-head"><h3>Change password</h3><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div>'+
@@ -2256,13 +2407,7 @@ document.getElementById('scrim').onclick = closeSidebarMobile;
     try{ localStorage.setItem('gridwork-sidebar-collapsed', next ? '1' : '0'); }catch(e){}
   };
 })();
-document.getElementById('btn-theme').onclick = function(){
-  var cur = document.documentElement.getAttribute('data-theme');
-  var next = cur==='dark' ? 'light' : (cur==='light' ? null : (isDark() ? 'light' : 'dark'));
-  if(next){ document.documentElement.setAttribute('data-theme', next); } else { document.documentElement.removeAttribute('data-theme'); }
-  Object.keys(chartInstances).forEach(function(id){ destroyChart(id); });
-  renderAll();
-};
+
 document.getElementById('profile-btn').onclick = function(ev){
   ev.stopPropagation();
   document.getElementById('profile-dropdown').classList.toggle('open');
@@ -2272,7 +2417,6 @@ document.addEventListener('click', function(ev){
   if(dd && dd.classList.contains('open') && !ev.target.closest('.profile-menu-wrap')){ dd.classList.remove('open'); }
 });
 document.getElementById('pm-sign-out').onclick = function(){ Auth.signOut(); };
-document.getElementById('pm-manage-team').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openTeamModal(); };
 document.getElementById('pm-settings').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openSection('settings'); };
 document.getElementById('pm-change-password').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openChangePasswordModal(); };
 
