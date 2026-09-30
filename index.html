@@ -324,6 +324,32 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 .team-row:last-child{border-bottom:none;}
 .team-row .who{font-size:13px;}
 .team-row .who .email{color:var(--ink-faint); font-size:11.5px; display:block;}
+
+#topbar-search-wrap{position:relative; width:260px; max-width:34vw;}
+#topbar-search{width:100%; padding:7px 12px; border:1px solid var(--border); border-radius:var(--radius-control); background:var(--bg); color:var(--ink); font-size:13px; transition:border-color .15s, box-shadow .15s;}
+#topbar-search:focus{outline:none; border-color:var(--accent, #2D74C4); box-shadow:0 0 0 3px rgba(45,116,196,.15);}
+#search-results{display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; min-width:300px; background:var(--bg); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,.14); z-index:70; max-height:60vh; overflow:auto; padding:4px;}
+#search-results.open{display:block;}
+.sr-item{display:flex; gap:10px; align-items:center; padding:8px 10px; border-radius:7px; cursor:pointer; font-size:13px; color:var(--ink);}
+.sr-item:hover{background:rgba(127,127,127,.12);}
+.sr-kind{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); min-width:64px;}
+.sr-empty{padding:10px; color:var(--ink-faint); font-size:13px;}
+.toast-action{margin-left:14px; background:none; border:0; color:inherit; font-weight:700; text-decoration:underline; cursor:pointer; font-size:13px;}
+.trash-wrap,.examples-wrap{max-width:820px; display:flex; flex-direction:column; gap:10px;}
+.trash-h{margin:14px 0 4px; font-size:13px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em;}
+.trash-row{display:flex; align-items:center; gap:10px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg);}
+.trash-name{flex:1; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.trash-left{color:var(--ink-faint); font-size:12.5px;}
+.empty-note{color:var(--ink-faint); font-size:14px; padding:24px 4px;}
+.howto{line-height:1.7; padding-left:20px; margin:8px 0 0;}
+.examples-wrap .chart-card p{margin:0 0 12px; color:var(--ink-faint); font-size:13.5px;}
+.view-enter{animation:viewIn .28s ease both;}
+@keyframes viewIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+#dash-cards .chart-card{transition:box-shadow .15s, opacity .15s;}
+.chart-card.dragging{box-shadow:0 14px 34px rgba(0,0,0,.22); opacity:.92; z-index:50; cursor:grabbing; user-select:none;}
+.chart-card.dragging *{user-select:none;}
+.card-head{touch-action:none;}
+@media (max-width:700px){ #topbar-search-wrap{display:none;} .trash-left{display:none;} }
 </style>
 </head>
 <body>
@@ -380,6 +406,7 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
       <button id="hamburger" class="icon-btn" aria-label="Open menu">☰</button>
       <div><div class="breadcrumb" id="breadcrumb"></div><h2 id="topbar-title">Gridwork</h2><div class="sub" id="topbar-sub"></div></div>
       <div class="topbar-spacer"></div>
+      <div id="topbar-search-wrap"><input id="topbar-search" type="search" placeholder="Search everything (Ctrl+K)" autocomplete="off"><div id="search-results"></div></div>
       <div class="topbar-actions" id="topbar-actions"></div>
       <div class="profile-menu-wrap" id="profile-menu-wrap" style="display:none;">
         <button id="profile-btn" class="icon-btn profile-btn" title="Account"><span id="profile-initial">?</span></button>
@@ -390,6 +417,7 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
             <span class="role-badge" id="profile-role"></span>
           </div>
           <button id="pm-settings">Settings</button>
+          <button id="pm-trash">Trash</button>
           <button id="pm-change-password">Change password</button>
           <button id="pm-sign-out">Sign out</button>
         </div>
@@ -427,15 +455,12 @@ var AGGS = [["sum","Sum"],["avg","Average"],["count","Count"],["min","Minimum"],
 var CHART_TYPES = [["bar","Bar"],["hbar","Horizontal bar"],["line","Line"],["area","Area"],["pie","Pie"],["donut","Donut"],["scatter","Scatter"],["kpi","Big number"],["table","Table"]];
 var SECTIONS = [
   ["dashboard","Dashboard"],
-  ["audit-plan","Audit Plan"],
-  ["observations","Observations"],
-  ["rcm","RCM"],
-  ["testing","Testing"],
-  ["reports","Reports"],
+  ["examples","Examples"],
   ["documents","Documents"],
   ["audit-trail","Audit Trail"]
 ];
 var NAV_ICONS = {
+  'examples':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M8 1.5l1.8 3.8 4.2.5-3.1 2.9.8 4.1L8 10.6 4.3 12.8l.8-4.1L2 5.8l4.2-.5z"/></svg>',
   'dashboard':'<svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.2"/><rect x="9" y="1" width="6" height="6" rx="1.2"/><rect x="1" y="9" width="6" height="6" rx="1.2"/><rect x="9" y="9" width="6" height="6" rx="1.2"/></svg>',
   'audit-plan':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="3" y="2.3" width="10" height="12" rx="1.2"/><path d="M6 1.3h4v2H6z" fill="currentColor" stroke="none"/><path d="M5.3 6.8h5.4M5.3 9.3h5.4M5.3 11.8h3.2"/></svg>',
   'observations':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 8s2.6-4.6 7-4.6S15 8 15 8s-2.6 4.6-7 4.6S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg>',
@@ -509,6 +534,11 @@ function uid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
 }
+async function softDel(table, id){
+  var r = await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id', id);
+  if(r.error) throw r.error;
+}
+function liveRows(a){ return (a||[]).filter(function(r){ return !r.deleted_at; }); }
 function esc(s){
   s = (s===undefined||s===null) ? '' : String(s);
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -539,14 +569,19 @@ function inlineMd(s){
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   return s;
 }
-function toast(msg, isErr){
+function toast(msg, isErr, action){
   var t = document.getElementById('toast');
   t.textContent = msg;
+  if(action){
+    var b = document.createElement('button'); b.className = 'toast-action'; b.textContent = action.label;
+    b.onclick = function(){ t.classList.remove('show'); action.fn(); };
+    t.appendChild(b); t.style.pointerEvents = 'auto';
+  } else { t.style.pointerEvents = 'none'; }
   t.style.background = isErr ? 'var(--danger)' : 'var(--ink)';
   t.style.color = isErr ? '#fff' : 'var(--bg)';
   t.classList.add('show');
   clearTimeout(toast._h);
-  toast._h = setTimeout(function(){ t.classList.remove('show'); }, 3200);
+  toast._h = setTimeout(function(){ t.classList.remove('show'); }, action ? 7000 : 3200);
 }
 var THEMES = [
   {id:'light-clean', label:'Light & clean', bg:'#FFFFFF', accent:'#2D74C4'},
@@ -666,9 +701,11 @@ function logActivity(action, entityType, label){
 }
 
 /* ================= STORE (Supabase, localStorage fallback) ================= */
+var TRASH_DAYS = 28;
 var Store = {
   mode: 'local',
   datasets: {}, dashboards: {}, cards: {},
+  trash: {datasets:{}, dashboards:{}, cards:{}},
   local: {datasets:{}, dashboards:{}, cards:{}},
 
   loadLocal: function(){
@@ -683,6 +720,7 @@ var Store = {
     this.loadLocal();
     if(sb){
       this.mode = 'db';
+      await this.purgeExpired();
       await this.refreshAll();
       this.subscribeAll();
     } else {
@@ -709,14 +747,19 @@ var Store = {
         if(dashRes.error) throw dashRes.error;
         var cardRes = await sb.from('cards').select('*');
         if(cardRes.error) throw cardRes.error;
+        var tr = {datasets:{}, dashboards:{}, cards:{}};
+        [['datasets',dsRes],['dashboards',dashRes],['cards',cardRes]].forEach(function(p){
+          (p[1].data||[]).forEach(function(r){ if(r.deleted_at) tr[p[0]][r.id] = {id:r.id, name:r.name||r.title||'Untitled chart', deletedAt:new Date(r.deleted_at).getTime(), dashboardId:r.dashboard_id}; });
+        });
+        self.trash = tr;
         var next = {};
-        (dsRes.data||[]).forEach(function(r){ next[r.id] = {id:r.id, name:r.name, columns:r.columns||[], rows:r.rows||[], rowCount:r.row_count||0, truncated:r.truncated, createdAt:new Date(r.created_at).getTime()}; });
+        liveRows(dsRes.data).forEach(function(r){ next[r.id] = {id:r.id, name:r.name, columns:r.columns||[], rows:r.rows||[], rowCount:r.row_count||0, truncated:r.truncated, createdAt:new Date(r.created_at).getTime()}; });
         self.datasets = next;
         var nextDash = {};
-        (dashRes.data||[]).forEach(function(r){ nextDash[r.id] = {id:r.id, name:r.name, cardIds:r.card_ids||[], createdAt:new Date(r.created_at).getTime()}; });
+        liveRows(dashRes.data).forEach(function(r){ nextDash[r.id] = {id:r.id, name:r.name, cardIds:r.card_ids||[], createdAt:new Date(r.created_at).getTime()}; });
         self.dashboards = nextDash;
         var nextCards = {};
-        (cardRes.data||[]).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg, content:r.content, posX:r.pos_x, posY:r.pos_y, width:r.width, height:r.height}; });
+        liveRows(cardRes.data).forEach(function(r){ nextCards[r.id] = {id:r.id, dashboardId:r.dashboard_id, datasetId:r.dataset_id, type:r.type, title:r.title, xField:r.x_field, yField:r.y_field, agg:r.agg, content:r.content, posX:r.pos_x, posY:r.pos_y, width:r.width, height:r.height}; });
         self.cards = nextCards;
       }catch(e){ toast('Could not load data from Supabase — check your setup.', true); }
       finally{
@@ -734,11 +777,52 @@ var Store = {
       // changes (insert dataset, insert dashboard, insert cards, update
       // dashboard). Wait for the burst to settle, then refresh once.
       clearTimeout(timer);
-      timer = setTimeout(function(){ self.refreshAll().then(renderAll); }, 300);
+      timer = setTimeout(function tryRefresh(){
+        var ae = document.activeElement;
+        var typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.id!=='topbar-search' && document.getElementById('canvas').contains(ae);
+        if(state.interacting || typing || Date.now() < layoutHoldUntil){ timer = setTimeout(tryRefresh, 1200); return; }
+        self.refreshAll().then(renderAll);
+      }, 300);
     }
     ['datasets','dashboards','cards'].forEach(function(table){
       sb.channel(table+'-changes').on('postgres_changes', {event:'*', schema:'public', table:table}, scheduleRefresh).subscribe();
     });
+  },
+  restoreItem: async function(kind, id){
+    if(this.mode!=='db') return;
+    var t = this.trash[kind][id];
+    var r = await sb.from(kind).update({deleted_at:null}).eq('id', id);
+    if(r.error) throw r.error;
+    if(kind==='dashboards'){ await sb.from('cards').update({deleted_at:null}).eq('dashboard_id', id).gte('deleted_at', new Date((t?t.deletedAt:0)-120000).toISOString()); }
+    if(kind==='cards' && t && t.dashboardId){
+      var d = this.dashboards[t.dashboardId];
+      if(d){ await sb.from('dashboards').update({card_ids:(d.cardIds||[]).concat([id])}).eq('id', t.dashboardId); }
+    }
+    logActivity('restored', kind==='cards'?'chart':kind.slice(0,-1), t?t.name:null);
+    await this.refreshAll();
+  },
+  purgeItem: async function(kind, id){
+    if(this.mode!=='db') return;
+    if(kind==='dashboards'){ await sb.from('cards').delete().eq('dashboard_id', id); }
+    var r = await sb.from(kind).delete().eq('id', id);
+    if(r.error) throw r.error;
+  },
+  emptyTrash: async function(){
+    var self = this;
+    for(var k of ['cards','dashboards','datasets']){
+      var ids = Object.keys(self.trash[k]);
+      for(var i=0;i<ids.length;i++){ await self.purgeItem(k, ids[i]); }
+    }
+    await self.refreshAll();
+  },
+  purgeExpired: async function(){
+    if(this.mode!=='db' || !Auth.isEditor()) return;
+    var cutoff = new Date(Date.now() - TRASH_DAYS*86400000).toISOString();
+    try{
+      var old = await sb.from('dashboards').select('id').lt('deleted_at', cutoff);
+      for(var d of (old.data||[])){ await sb.from('cards').delete().eq('dashboard_id', d.id); }
+      for(var t of ['cards','dashboards','datasets']){ await sb.from(t).delete().lt('deleted_at', cutoff); }
+    }catch(e){}
   },
   getRows: function(datasetId){
     var ds = this.datasets[datasetId];
@@ -765,7 +849,7 @@ var Store = {
   },
   deleteDataset: async function(id){
     if(this.mode==='db'){
-      try{ await sb.from('datasets').delete().eq('id', id); }catch(e){ toast('Could not delete dataset.', true); }
+      try{ await softDel('datasets', id); }catch(e){ toast('Could not delete dataset. Has the v7 SQL been run?', true); }
     } else { delete this.local.datasets[id]; this.saveLocal(); }
   },
   saveDashboard: async function(name, id){
@@ -792,7 +876,7 @@ var Store = {
   deleteDashboard: async function(id){
     var cardIds = (this.dashboards[id] && this.dashboards[id].cardIds) || [];
     for(var i=0;i<cardIds.length;i++){ await this.deleteCard(cardIds[i], id, false); }
-    if(this.mode==='db'){ try{ await sb.from('dashboards').delete().eq('id', id); }catch(e){} }
+    if(this.mode==='db'){ try{ await softDel('dashboards', id); }catch(e){ toast('Could not delete dashboard. Has the v7 SQL been run?', true); } }
     else { delete this.local.dashboards[id]; this.saveLocal(); }
   },
   saveCard: async function(card){
@@ -837,7 +921,7 @@ var Store = {
   },
   deleteCard: async function(cardId, dashboardId, updateDash){
     if(updateDash===undefined) updateDash = true;
-    if(this.mode==='db'){ try{ await sb.from('cards').delete().eq('id', cardId); }catch(e){} }
+    if(this.mode==='db'){ try{ await softDel('cards', cardId); }catch(e){ toast('Could not delete chart. Has the v7 SQL been run?', true); } }
     else { delete this.local.cards[cardId]; this.saveLocal(); }
     if(updateDash){
       var dash = this.dashboards[dashboardId];
@@ -1093,6 +1177,7 @@ function renderAccountBox(){
   roleEl.textContent = Auth.isEditor() ? 'Editor' : 'Viewer';
   roleEl.className = 'role-badge'+(Auth.isEditor()?' editor':'');
   document.getElementById('pm-settings').style.display = Auth.isEditor() ? '' : 'none';
+  document.getElementById('pm-trash').style.display = Auth.isEditor() ? '' : 'none';
   document.getElementById('pm-change-password').style.display = Auth.isEditor() ? 'none' : '';
 }
 function renderSidebar(){
@@ -1155,7 +1240,16 @@ function renderAllImpl(){
   if(state.section==='documents'){ renderDocumentsSection(title, sub, actions, canvas); return; }
   if(state.section==='reports'){ renderReportsSection(title, sub, actions, canvas); return; }
   if(state.section==='audit-trail'){ renderActivityLogSection(title, sub, actions, canvas); return; }
+  if(state.section==='trash'){
+    if(!Auth.isEditor()){ state.section='dashboard'; state.view='home'; return renderAll(); }
+    renderTrashSection(title, sub, actions, canvas); return;
+  }
+  if(state.section==='examples'){ renderExamplesSection(title, sub, actions, canvas); return; }
   if(state.section==='settings'){
+    if(!Auth.isEditor()){ state.section='dashboard'; state.view='home'; return renderAll(); }
+    renderSettingsSection(title, sub, actions, canvas); return;
+  }
+  if(false){
     if(!Auth.isEditor()){ state.section='dashboard'; state.view='home'; return renderAll(); }
     renderSettingsSection(title, sub, actions, canvas); return;
   }
@@ -1238,15 +1332,15 @@ function offerDownload(filename, data){
 }
 function confirmDeleteDataset(id){
   var d = Store.datasets[id];
-  confirmModal('Delete "'+d.name+'"? This removes it from every dashboard card that uses it — that can\'t be undone.', function(){
+  confirmModal('Delete "'+d.name+'"? This removes it from every dashboard card that uses it — you can restore it from Trash for 28 days.', function(){
     Store.deleteDataset(id).then(function(){
       delete Store.datasets[id];
       state.view='home'; state.currentDatasetId=null;
-      toast('Dataset deleted.');
+      toast('Dataset moved to Trash.', false, {label:'Undo', fn:function(){ Store.restoreItem('datasets', id).then(renderAll, function(){ toast('Could not restore.', true); }); }});
       logActivity('deleted', 'dataset', d.name);
       renderAll();
     });
-  }, {danger:true, confirmLabel:'Delete dataset'});
+  }, {danger:true, confirmLabel:'Move to Trash'});
 }
 
 /* ---- dashboard view ---- */
@@ -1264,6 +1358,7 @@ function renderDashboardView(title, sub, actions, canvas){
   if(canEdit()){
     actions.appendChild(mkBtn('+ Add chart', function(){ openChartConfigModal(dash.id); }, 'btn-primary'));
     actions.appendChild(mkBtn('+ Add text', function(){ openTextCardModal(dash.id); }, ''));
+    if(cardIds.length>1) actions.appendChild(mkBtn('Tidy up', function(){ tidyDashboard(dash.id); }, ''));
     actions.appendChild(mkBtn('Rename', function(){ renameDashboard(dash.id); }, ''));
     actions.appendChild(mkBtn('Delete', function(){ confirmDeleteDashboard(dash.id); }, 'btn-danger'));
   }
@@ -1433,9 +1528,37 @@ async function askAI(dashboardId){
 }
 /* ================= FREE LAYOUT (drag + resize) ================= */
 var MIN_CARD_W = 260, MIN_CARD_H = 200;
+var GRID = 8, layoutHoldUntil = 0;
+function snap(v){ return Math.round(v/GRID)*GRID; }
 function saveCardLayout(card){
-  if(!sb) { if(Store.mode==='local' && Store.local.cards[card.id]){ Object.assign(Store.local.cards[card.id], {posX:card.posX, posY:card.posY, width:card.width, height:card.height}); Store.saveLocal(); } return; }
-  sb.from('cards').update({pos_x:card.posX, pos_y:card.posY, width:card.width, height:card.height}).eq('id', card.id).then(function(){}, function(){});
+  layoutHoldUntil = Date.now() + 6000;
+  if(!sb){ if(Store.mode==='local' && Store.local.cards[card.id]){ Object.assign(Store.local.cards[card.id], {posX:card.posX, posY:card.posY, width:card.width, height:card.height}); Store.saveLocal(); } return; }
+  sb.from('cards').update({pos_x:card.posX, pos_y:card.posY, width:card.width, height:card.height}).eq('id', card.id).then(function(r){ if(r && r.error) toast('Could not save the layout.', true); }, function(){ toast('Could not save the layout.', true); });
+}
+function dashCards(dashId){ return ((Store.dashboards[dashId]||{}).cardIds||[]).map(function(i){ return Store.cards[i]; }).filter(Boolean); }
+function overlaps(a,b){ return a.posX < b.posX+b.width && b.posX < a.posX+a.width && a.posY < b.posY+b.height && b.posY < a.posY+a.height; }
+function settleCard(card){
+  // If the moved card lands on others, push it below the lowest one it overlaps.
+  var others = dashCards(card.dashboardId).filter(function(c){ return c.id!==card.id; }), guard = 0, hit;
+  while(guard++ < 30 && (hit = others.filter(function(o){ return overlaps(card,o); })[0])){ card.posY = snap(hit.posY + hit.height + 16); }
+}
+function applyCardEl(card){
+  var el = document.getElementById('card-'+card.id); if(!el) return;
+  el.style.transition='left .2s ease, top .2s ease'; el.style.left=card.posX+'px'; el.style.top=card.posY+'px'; el.style.width=card.width+'px'; el.style.height=card.height+'px';
+  setTimeout(function(){ el.style.transition=''; }, 260);
+  var ch = chartInstances[card.id]; if(ch) ch.resize();
+}
+function tidyDashboard(dashId){
+  var wrapW = Math.max(MIN_CARD_W, (document.getElementById('dash-cards')||{}).clientWidth || 720);
+  var cards = dashCards(dashId).sort(function(a,b){ return (a.posY-b.posY)||(a.posX-b.posX); });
+  var x=0, y=0, rowH=0;
+  cards.forEach(function(c){
+    c.width = Math.min(c.width, wrapW);
+    if(x>0 && x+c.width > wrapW){ x=0; y+=rowH+16; rowH=0; }
+    c.posX=x; c.posY=y; x+=c.width+16; rowH=Math.max(rowH,c.height);
+  });
+  cards.forEach(function(c){ applyCardEl(c); saveCardLayout(c); });
+  resizeCanvasContainer(); toast('Charts tidied up.');
 }
 function nextCardSlot(dashboardId){
   var cardIds = (Store.dashboards[dashboardId] && Store.dashboards[dashboardId].cardIds) || [];
@@ -1457,55 +1580,50 @@ function ensureCardLayout(card, fallbackIndex){
 }
 function startDrag(e, el, card){
   if(!canEdit()) return;
-  e.preventDefault();
-  var startX=e.clientX, startY=e.clientY, startLeft=card.posX||0, startTop=card.posY||0;
-  el.style.zIndex = 50;
+  e.preventDefault(); state.interacting = true;
+  var wrapW = (document.getElementById('dash-cards')||{}).clientWidth || 9999;
+  var sx=e.clientX, sy=e.clientY, sl=card.posX||0, st=card.posY||0;
+  try{ e.target.setPointerCapture(e.pointerId); }catch(_){}
+  el.classList.add('dragging');
   function onMove(ev){
-    var dx=ev.clientX-startX, dy=ev.clientY-startY;
-    var nx=Math.max(0, startLeft+dx), ny=Math.max(0, startTop+dy);
-    el.style.left=nx+'px'; el.style.top=ny+'px';
-    card._pendingX=nx; card._pendingY=ny;
+    card._nx = Math.min(Math.max(0, snap(sl+ev.clientX-sx)), Math.max(0, wrapW-card.width));
+    card._ny = Math.max(0, snap(st+ev.clientY-sy));
+    el.style.left=card._nx+'px'; el.style.top=card._ny+'px';
   }
   function onUp(){
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
-    el.style.zIndex='';
-    if(card._pendingX!==undefined){ card.posX=card._pendingX; card.posY=card._pendingY; saveCardLayout(card); resizeCanvasContainer(); }
+    document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); document.removeEventListener('pointercancel', onUp);
+    el.classList.remove('dragging'); state.interacting = false;
+    if(card._nx!==undefined){ card.posX=card._nx; card.posY=card._ny; delete card._nx; delete card._ny; settleCard(card); applyCardEl(card); saveCardLayout(card); resizeCanvasContainer(); }
   }
-  document.addEventListener('pointermove', onMove);
-  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointermove', onMove); document.addEventListener('pointerup', onUp); document.addEventListener('pointercancel', onUp);
 }
 function startResize(e, el, card, corner){
   if(!canEdit()) return;
-  e.preventDefault(); e.stopPropagation();
-  var startX=e.clientX, startY=e.clientY;
-  var startW=card.width||340, startH=card.height||300, startLeft=card.posX||0, startTop=card.posY||0;
-  var growsLeft = (corner==='tl'||corner==='bl');
-  var growsUp = (corner==='tl'||corner==='tr');
-  el.style.zIndex = 50;
+  e.preventDefault(); e.stopPropagation(); state.interacting = true;
+  var wrapW = (document.getElementById('dash-cards')||{}).clientWidth || 9999;
+  var sx=e.clientX, sy=e.clientY, sw=card.width||340, sh=card.height||300, sl=card.posX||0, st=card.posY||0;
+  var left=(corner==='tl'||corner==='bl'), up=(corner==='tl'||corner==='tr');
+  try{ e.target.setPointerCapture(e.pointerId); }catch(_){}
+  el.classList.add('dragging');
   function onMove(ev){
-    var dx=ev.clientX-startX, dy=ev.clientY-startY;
-    if(growsLeft){ dx = Math.min(dx, startW-MIN_CARD_W); } else { dx = Math.max(dx, MIN_CARD_W-startW); }
-    if(growsUp){ dy = Math.min(dy, startH-MIN_CARD_H); } else { dy = Math.max(dy, MIN_CARD_H-startH); }
-    var nw = growsLeft ? startW-dx : startW+dx;
-    var nh = growsUp ? startH-dy : startH+dy;
-    var nx = growsLeft ? startLeft+dx : startLeft;
-    var ny = growsUp ? startTop+dy : startTop;
-    el.style.width=nw+'px'; el.style.height=nh+'px'; el.style.left=nx+'px'; el.style.top=ny+'px';
-    card._pendingW=nw; card._pendingH=nh; card._pendingX=nx; card._pendingY=ny;
-    var chart = chartInstances[card.id]; if(chart) chart.resize();
+    var dx=ev.clientX-sx, dy=ev.clientY-sy;
+    dx = left ? Math.min(dx, sw-MIN_CARD_W) : Math.max(dx, MIN_CARD_W-sw);
+    dy = up ? Math.min(dy, sh-MIN_CARD_H) : Math.max(dy, MIN_CARD_H-sh);
+    var nw=snap(left?sw-dx:sw+dx), nh=snap(up?sh-dy:sh+dy);
+    var nx=left?sl+sw-nw:sl, ny=up?st+sh-nh:st;
+    if(nx<0){ nw+=nx; nx=0; }
+    if(nx+nw>wrapW) nw=snap(wrapW-nx);
+    if(ny<0){ nh+=ny; ny=0; }
+    card._n={w:Math.max(MIN_CARD_W,nw),h:Math.max(MIN_CARD_H,nh),x:nx,y:ny};
+    el.style.width=card._n.w+'px'; el.style.height=card._n.h+'px'; el.style.left=nx+'px'; el.style.top=ny+'px';
+    var ch=chartInstances[card.id]; if(ch) ch.resize();
   }
   function onUp(){
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
-    el.style.zIndex='';
-    if(card._pendingW!==undefined){
-      card.width=card._pendingW; card.height=card._pendingH; card.posX=card._pendingX; card.posY=card._pendingY;
-      saveCardLayout(card); resizeCanvasContainer();
-    }
+    document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); document.removeEventListener('pointercancel', onUp);
+    el.classList.remove('dragging'); state.interacting = false;
+    if(card._n){ card.width=card._n.w; card.height=card._n.h; card.posX=card._n.x; card.posY=card._n.y; delete card._n; settleCard(card); applyCardEl(card); saveCardLayout(card); resizeCanvasContainer(); }
   }
-  document.addEventListener('pointermove', onMove);
-  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointermove', onMove); document.addEventListener('pointerup', onUp); document.addEventListener('pointercancel', onUp);
 }
 function makeCardDraggableResizable(el, card){
   var head = el.querySelector('.card-head');
@@ -1598,9 +1716,9 @@ function downloadCardData(card){
   offerDownload((card.title||'chart').replace(/[^a-z0-9-_]+/gi,'_')+'.csv', toCSV(cols, rows));
 }
 function deleteCardConfirm(card){
-  confirmModal('Delete this chart? This can\'t be undone.', function(){
-    Store.deleteCard(card.id, card.dashboardId).then(function(){ delete Store.cards[card.id]; logActivity('deleted', 'chart', card.title); renderAll(); });
-  }, {danger:true, confirmLabel:'Delete chart'});
+  confirmModal('Move this chart to Trash? You can restore it for 28 days.', function(){
+    Store.deleteCard(card.id, card.dashboardId).then(function(){ delete Store.cards[card.id]; logActivity('deleted', 'chart', card.title); renderAll(); toast('Chart moved to Trash.', false, {label:'Undo', fn:function(){ Store.restoreItem('cards', card.id).then(renderAll, function(){ toast('Could not restore.', true); }); }}); });
+  }, {danger:true, confirmLabel:'Move to Trash'});
 }
 function renameDashboard(id){
   var d = Store.dashboards[id];
@@ -1610,15 +1728,15 @@ function renameDashboard(id){
 }
 function confirmDeleteDashboard(id){
   var d = Store.dashboards[id];
-  confirmModal('Delete dashboard "'+d.name+'"? Its charts will be removed too — that can\'t be undone.', function(){
+  confirmModal('Delete dashboard "'+d.name+'"? Its charts go with it. You can restore it from Trash for 28 days.', function(){
     Store.deleteDashboard(id).then(function(){
       delete Store.dashboards[id];
       state.view='home'; state.currentDashboardId=null;
-      toast('Dashboard deleted.');
+      toast('Dashboard moved to Trash.', false, {label:'Undo', fn:function(){ Store.restoreItem('dashboards', id).then(renderAll, function(){ toast('Could not restore.', true); }); }});
       logActivity('deleted', 'dashboard', d.name);
       renderAll();
     });
-  }, {danger:true, confirmLabel:'Delete dashboard'});
+  }, {danger:true, confirmLabel:'Move to Trash'});
 }
 
 /* ================= NAVIGATION ================= */
@@ -2418,7 +2536,115 @@ document.addEventListener('click', function(ev){
 });
 document.getElementById('pm-sign-out').onclick = function(){ Auth.signOut(); };
 document.getElementById('pm-settings').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openSection('settings'); };
+document.getElementById('pm-trash').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openSection('trash'); };
 document.getElementById('pm-change-password').onclick = function(){ document.getElementById('profile-dropdown').classList.remove('open'); openChangePasswordModal(); };
+
+/* ================= TRASH ================= */
+function daysLeft(ts){ return Math.max(0, Math.ceil((ts + TRASH_DAYS*86400000 - Date.now())/86400000)); }
+function renderTrashSection(title, sub, actions, canvas){
+  title.textContent = 'Trash';
+  var kinds = [['dashboards','Dashboards'],['datasets','Datasets'],['cards','Charts']];
+  var total = 0; kinds.forEach(function(k){ total += Object.keys(Store.trash[k[0]]).length; });
+  sub.textContent = 'Items are deleted for good after '+TRASH_DAYS+' days.';
+  if(total){ actions.appendChild(mkBtn('Empty Trash', function(){
+    confirmModal('Permanently delete all '+total+' item(s) in Trash? This can\'t be undone.', function(){
+      Store.emptyTrash().then(function(){ toast('Trash emptied.'); renderAll(); }, function(){ toast('Could not empty Trash.', true); });
+    }, {danger:true, confirmLabel:'Empty Trash'});
+  }, 'btn-danger')); }
+  if(!total){ canvas.innerHTML = '<div class="empty-note">Trash is empty. Deleted dashboards, datasets and charts show up here for '+TRASH_DAYS+' days.</div>'; return; }
+  var html = '';
+  kinds.forEach(function(k){
+    var items = Object.values(Store.trash[k[0]]).sort(function(a,b){ return b.deletedAt-a.deletedAt; });
+    if(!items.length) return;
+    html += '<h3 class="trash-h">'+k[1]+'</h3>';
+    items.forEach(function(it){
+      html += '<div class="trash-row"><div class="trash-name">'+esc(it.name)+'</div><div class="trash-left">'+daysLeft(it.deletedAt)+' day(s) left</div>'
+        + '<button class="btn" data-a="restore" data-k="'+k[0]+'" data-id="'+esc(it.id)+'">Restore</button>'
+        + '<button class="btn btn-danger" data-a="purge" data-k="'+k[0]+'" data-id="'+esc(it.id)+'">Delete forever</button></div>';
+    });
+  });
+  canvas.innerHTML = '<div class="trash-wrap view-enter">'+html+'</div>';
+  canvas.querySelectorAll('button[data-a]').forEach(function(b){
+    b.onclick = function(){
+      var k = b.getAttribute('data-k'), id = b.getAttribute('data-id');
+      if(b.getAttribute('data-a')==='restore'){
+        Store.restoreItem(k, id).then(function(){ toast('Restored.'); renderAll(); }, function(){ toast('Could not restore.', true); });
+      } else {
+        confirmModal('Delete this permanently? This can\'t be undone.', function(){
+          Store.purgeItem(k, id).then(function(){ return Store.refreshAll(); }).then(renderAll, function(){ toast('Could not delete.', true); });
+        }, {danger:true, confirmLabel:'Delete forever'});
+      }
+    };
+  });
+}
+
+/* ================= EXAMPLES ================= */
+function buildExampleRows(){
+  var regions=['North','South','East','West'], prods=[['Laptop','Electronics',900],['Monitor','Electronics',260],['Desk','Furniture',340],['Chair','Furniture',180],['Notebook','Stationery',6],['Pen Set','Stationery',14]], stat=['Delivered','Delivered','Delivered','Shipped','Pending','Cancelled'];
+  var rows=[]; for(var i=0;i<30;i++){
+    var p=prods[(i*5+2)%prods.length], m=1+(i%6), d=1+((i*7)%27), q=1+(i%4);
+    rows.push({'Order ID':'ORD-'+(1001+i),'Region':regions[(i*3)%4],'Product':p[0],'Category':p[1],'Order Date':'2026-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'),'Amount':p[2]*q,'Status':stat[(i*7)%stat.length]});
+  } return rows;
+}
+function renderExamplesSection(title, sub, actions, canvas){
+  title.textContent = 'Examples & how to use'; sub.textContent = 'A sample dataset and a quick guide.';
+  var btn = canEdit() ? '<button class="btn btn-primary" id="load-example">Load example dataset</button>' : '<p class="empty-note">Ask an editor to load the example dataset.</p>';
+  canvas.innerHTML = '<div class="examples-wrap view-enter"><div class="chart-card"><div class="card-head"><h3>Try it with sample data</h3></div><p>Adds "Example: Sales Orders" (30 rows: Order ID, Region, Product, Category, Order Date, Amount, Status) so you can build a first dashboard in a minute.</p>'+btn+'</div>'
+  + '<div class="chart-card"><div class="card-head"><h3>How to use Gridwork</h3></div><ol class="howto"><li><b>Add data</b> on the Dashboard page: upload a CSV/Excel file or paste rows.</li><li><b>Open a dataset</b> to see its rows and add charts (bar, line, pie, big number, table and more).</li><li><b>Build a dashboard</b>: charts sit on a dashboard you can drag and resize. Use <b>+ Add text</b> for notes and headings.</li><li><b>Click a chart</b> to drill into the rows behind it; use filters to narrow what you see.</li><li><b>Deleted something?</b> It goes to Trash (profile menu) for 28 days and can be restored.</li><li><b>Search</b> anything from the top bar, or press Ctrl+K.</li></ol></div></div>';
+  var b = document.getElementById('load-example');
+  if(b) b.onclick = function(){
+    b.disabled = true;
+    var rows = buildExampleRows(), headers = Object.keys(rows[0]);
+    Store.saveDataset('Example: Sales Orders', inferColumns(rows, headers), rows).then(function(id){
+      state.section='dashboard'; toast('Example dataset added.'); openDataset(id);
+    }, function(){ b.disabled=false; toast('Could not add the example.', true); });
+  };
+}
+
+/* ================= GLOBAL SEARCH ================= */
+var searchExtra = {t:0, docs:[], acts:[]};
+function loadSearchExtra(){
+  if(!sb || Date.now()-searchExtra.t < 60000) return;
+  searchExtra.t = Date.now();
+  sb.from('documents').select('title,file_name').limit(300).then(function(r){ searchExtra.docs = r.data||[]; }, function(){});
+  sb.from('activity_log').select('action,entity_type,entity_label,user_email,created_at').order('created_at',{ascending:false}).limit(300).then(function(r){ searchExtra.acts = r.data||[]; }, function(){});
+}
+function runGlobalSearch(q){
+  loadSearchExtra();
+  q = (q||'').trim().toLowerCase(); var box = document.getElementById('search-results');
+  if(!q){ box.classList.remove('open'); box.innerHTML=''; return; }
+  var hits = [];
+  Object.values(Store.dashboards).forEach(function(d){ if((d.name||'').toLowerCase().indexOf(q)>=0) hits.push(['Dashboard', d.name, function(){ state.section='dashboard'; openDashboard(d.id); }]); });
+  Object.values(Store.datasets).forEach(function(d){
+    var cols = (d.columns||[]).map(function(c){ return c.name; });
+    if((d.name||'').toLowerCase().indexOf(q)>=0) hits.push(['Dataset', d.name, function(){ state.section='dashboard'; openDataset(d.id); }]);
+    else { var c = cols.filter(function(n){ return String(n).toLowerCase().indexOf(q)>=0; })[0]; if(c) hits.push(['Dataset', d.name+' · column '+c, function(){ state.section='dashboard'; openDataset(d.id); }]); }
+  });
+  Object.values(Store.cards).forEach(function(c){
+    if(((c.title||'')+' '+(c.content||'')).toLowerCase().indexOf(q)>=0 && Store.dashboards[c.dashboardId]) hits.push(['Chart', (c.title||'Text note')+' · in '+Store.dashboards[c.dashboardId].name, function(){ state.section='dashboard'; openDashboard(c.dashboardId); }]);
+  });
+  searchExtra.docs.forEach(function(d){ if(((d.title||'')+' '+(d.file_name||'')).toLowerCase().indexOf(q)>=0) hits.push(['Document', d.title||d.file_name, function(){ openSection('documents'); }]); });
+  var actN = 0;
+  searchExtra.acts.forEach(function(a){ if(actN<4 && ((a.action||'')+' '+(a.entity_type||'')+' '+(a.entity_label||'')+' '+(a.user_email||'')).toLowerCase().indexOf(q)>=0){ actN++; hits.push(['Activity', (a.user_email||'Someone')+' '+a.action+' '+(a.entity_type||'')+(a.entity_label?' "'+a.entity_label+'"':''), function(){ openSection('audit-trail'); }]); } });
+  SECTIONS.forEach(function(sc){ if(sc[1].toLowerCase().indexOf(q)>=0) hits.push(['Page', sc[1], function(){ openSection(sc[0]); }]); });
+  hits = hits.slice(0,14);
+  box.innerHTML = hits.length ? '' : '<div class="sr-empty">No matches</div>';
+  hits.forEach(function(h){
+    var r = document.createElement('div'); r.className='sr-item'; r.innerHTML='<span class="sr-kind">'+h[0]+'</span><span>'+esc(h[1])+'</span>';
+    r.onmousedown = function(ev){ ev.preventDefault(); document.getElementById('topbar-search').value=''; box.classList.remove('open'); h[2](); };
+    box.appendChild(r);
+  });
+  box.classList.add('open');
+}
+function wireGlobalSearch(){
+  var inp = document.getElementById('topbar-search'); if(!inp) return;
+  inp.addEventListener('input', function(){ runGlobalSearch(inp.value); });
+  inp.addEventListener('focus', function(){ runGlobalSearch(inp.value); });
+  inp.addEventListener('blur', function(){ setTimeout(function(){ document.getElementById('search-results').classList.remove('open'); }, 120); });
+  inp.addEventListener('keydown', function(e){ if(e.key==='Escape'){ inp.value=''; inp.blur(); } });
+  document.addEventListener('keydown', function(e){ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); inp.focus(); inp.select(); } });
+}
+wireGlobalSearch();
 
 /* ================= ROUTING (hash-based) ================= */
 var suppressHashChange = false;
@@ -2441,8 +2667,8 @@ function applyHashState(){
     state.section = 'dashboard'; state.view = 'dataset'; state.currentDatasetId = parts[1];
   } else if(parts[0]==='board' && parts[1] && Store.dashboards[parts[1]]){
     state.section = 'dashboard'; state.view = 'dashboard'; state.currentDashboardId = parts[1];
-  } else if(parts[0]==='settings'){
-    state.section = 'settings';
+  } else if(parts[0]==='settings' || parts[0]==='trash'){
+    state.section = parts[0];
   } else if(parts[0] && SECTIONS.some(function(s){ return s[0]===parts[0]; })){
     state.section = parts[0]; state.view = 'home';
   } else if(raw){
