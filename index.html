@@ -349,6 +349,28 @@ table.manual-grid th input{font-weight:600; background:var(--surface-2);}
 .chart-card.dragging{box-shadow:0 14px 34px rgba(0,0,0,.22); opacity:.92; z-index:50; cursor:grabbing; user-select:none;}
 .chart-card.dragging *{user-select:none;}
 .card-head{touch-action:none;}
+#chat-fab{position:fixed; right:20px; bottom:20px; width:52px; height:52px; border-radius:50%; border:0; background:var(--accent, #2D74C4); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.25); z-index:80; transition:transform .15s;}
+#chat-fab:hover{transform:scale(1.07);}
+#chat-panel{position:fixed; right:20px; bottom:84px; width:360px; max-width:calc(100vw - 24px); height:520px; max-height:calc(100vh - 110px); background:var(--bg); color:var(--ink); border:1px solid var(--border); border-radius:14px; box-shadow:0 14px 40px rgba(0,0,0,.28); display:none; flex-direction:column; z-index:81; overflow:hidden;}
+#chat-panel.open{display:flex; animation:viewIn .2s ease both;}
+.chat-head{display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border);}
+.chat-head button{background:none; border:0; font-size:22px; line-height:1; cursor:pointer; color:var(--ink-faint);}
+#chat-log{flex:1; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:8px;}
+.chat-msg{max-width:92%; padding:8px 11px; border-radius:11px; font-size:13.5px; line-height:1.5;}
+.chat-msg.bot{background:rgba(127,127,127,.13); align-self:flex-start;}
+.chat-msg.me{background:var(--accent, #2D74C4); color:#fff; align-self:flex-end;}
+.chat-tbl{border-collapse:collapse; margin-top:6px; font-size:12.5px; width:100%;}
+.chat-tbl th,.chat-tbl td{padding:3px 8px; border-bottom:1px solid var(--border); text-align:left;}
+.chat-tbl td:last-child,.chat-tbl th:last-child{text-align:right;}
+.chat-more{font-size:12px; color:var(--ink-faint); margin-top:4px;}
+.chat-ul{margin:6px 0 0; padding-left:18px;}
+.chat-add{margin-top:8px; font-size:12.5px;}
+#chat-chips{display:flex; flex-wrap:wrap; gap:6px; padding:0 12px 8px;}
+#chat-chips button{font-size:12px; padding:4px 9px; border:1px solid var(--border); border-radius:999px; background:none; color:var(--ink); cursor:pointer;}
+#chat-chips button:hover{background:rgba(127,127,127,.13);}
+.chat-input{display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--border);}
+.chat-input input{flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--ink); font-size:13.5px;}
+@media (max-width:700px){ #chat-panel{right:8px; left:8px; width:auto; bottom:80px;} }
 @media (max-width:700px){ #topbar-search-wrap{display:none;} .trash-left{display:none;} }
 </style>
 </head>
@@ -2645,6 +2667,161 @@ function wireGlobalSearch(){
   document.addEventListener('keydown', function(e){ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); inp.focus(); inp.select(); } });
 }
 wireGlobalSearch();
+
+/* ================= CHATBOT (rule-based, no AI, runs fully in the browser) ================= */
+var CHAT_HELP = [
+  [/trash|restore|recover|undelete|deleted|delete/, 'Deleting moves things to Trash (profile menu > Trash, editors only). Items stay there 28 days, then are removed automatically. In Trash you can Restore, Delete forever, or Empty Trash. Right after deleting, the toast also has an Undo button.'],
+  [/upload|import|csv|excel|add data|new dataset|paste/, 'To add data, go to the Dashboard page and use the add-dataset option to upload a CSV/Excel file or paste rows. Want to just explore? Open the Examples tab and load the sample dataset.'],
+  [/tidy|arrange|align|overlap|drag|resize|move|layout/, 'On a dashboard, drag a chart by its title bar and resize from its corners. Charts snap to a grid and will not sit on top of each other. The "Tidy up" button lines everything up in rows.'],
+  [/text|note|heading|markdown/, 'On a dashboard click "+ Add text" to add a note with bold, italic, headings, bullets and links.'],
+  [/chart|graph|visual|dashboard|kpi/, 'Open a dataset and add a chart (bar, line, pie, scatter, big number, table), then place it on a dashboard. You can also ask me: "total Amount by Region", then press "Add as chart" while a dashboard is open.'],
+  [/search|find/, 'Use the search box at the top, or press Ctrl+K. It searches dashboards, datasets, columns, charts, documents and activity.'],
+  [/theme|dark|light|color|appearance/, 'Settings > Appearance has three themes: Light Clean, Warm Editorial and Dark Modern (editors only).'],
+  [/role|editor|viewer|team|user|permission|invite|share/, 'There are two roles. Editors can change data, dashboards and settings. Viewers can look but not change. The first person to sign up is the editor, and everyone else starts as a viewer. Editors can change roles under Settings > Manage team.'],
+  [/password/, 'Open the profile menu (top right) and choose Change password.'],
+  [/example|sample|demo/, 'Open the Examples tab and click "Load example dataset" to add a 30-row Sales Orders dataset.']
+];
+var chatMsgs = [];
+function chatNorm(x){ return String(x||'').toLowerCase().replace(/[_\-]+/g,' ').trim(); }
+function chatNum(v){ var n = typeof v==='number' ? v : Number(String(v==null?'':v).replace(/[, $₹€£%]/g,'')); return isNaN(n) ? null : n; }
+function chatEsc(x){ return esc(String(x)); }
+function chatDataset(q){
+  var all = Object.values(Store.datasets);
+  var named = all.filter(function(d){ return chatNorm(q).indexOf(chatNorm(d.name))>=0; })[0];
+  if(named) return named;
+  if(state.view==='dataset' && Store.datasets[state.currentDatasetId]) return Store.datasets[state.currentDatasetId];
+  if(state.view==='dashboard'){
+    var dsh = Store.dashboards[state.currentDashboardId];
+    var c = dsh && (dsh.cardIds||[]).map(function(i){ return Store.cards[i]; }).filter(function(c){ return c && c.datasetId && Store.datasets[c.datasetId]; })[0];
+    if(c) return Store.datasets[c.datasetId];
+  }
+  return all.length===1 ? all[0] : null;
+}
+function chatAnswerData(q, ds){
+  var rows = Store.getRows(ds.id), cols = ds.columns||[], nq = ' '+chatNorm(q)+' ';
+  if(!rows.length) return {text:'The dataset "'+ds.name+'" has no rows yet.'};
+  var mentioned = cols.map(function(c){ var n1=' '+chatNorm(c.name), i1=nq.indexOf(n1+' '), i2=nq.indexOf(n1+'s '); return {c:c, i:i1>=0?i1:i2}; }).filter(function(m){ return m.i>=0; }).sort(function(a,b){ return a.i-b.i; }).map(function(m){ return m.c; });
+  // filters
+  var filters = [], filterCols = {};
+  cols.forEach(function(c){
+    var m = new RegExp(chatNorm(c.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*(?:=|is|equals|equal to|:)\\s*"?([^"?,]+?)"?(?=\\s+(?:and|by|per|for|in)\\b|$|\\?|,)','i').exec(chatNorm(q));
+    if(m){ filters.push([c.name, m[1].trim()]); filterCols[c.name]=1; }
+  });
+  cols.filter(function(c){ return c.type!=='number' && !filterCols[c.name]; }).forEach(function(c){
+    var seen = {}; rows.forEach(function(r){ seen[chatNorm(r[c.name])] = r[c.name]; });
+    var keys = Object.keys(seen); if(keys.length>60) return;
+    keys.forEach(function(k){ if(k.length>1 && !filterCols[c.name] && (' '+chatNorm(q)+' ').indexOf(' '+k+' ')>=0){ filters.push([c.name, seen[k]]); filterCols[c.name]=1; } });
+  });
+  var fRows = rows.filter(function(r){ return filters.every(function(f){ return chatNorm(r[f[0]])===chatNorm(f[1]); }); });
+  var fText = filters.length ? ' where '+filters.map(function(f){ return f[0]+' = '+f[1]; }).join(' and ') : '';
+  var nqs = chatNorm(q);
+  var agg = /\b(average|avg|mean)\b/.test(nqs) ? 'avg' : /\b(max|maximum|largest|biggest)\b/.test(nqs) ? 'max' : /\b(min|minimum|smallest)\b/.test(nqs) ? 'min' : /\b(count|how many|number of)\b/.test(nqs) ? 'count' : 'sum';
+  var rank = /\b(top|highest|best|most|lowest|worst|least|bottom)\b/.test(nqs), asc = /\b(lowest|worst|least|bottom)\b/.test(nqs);
+  var nm = /\b(?:top|bottom|lowest|highest)\s+(\d+)/.exec(nqs), limit = nm ? Math.min(50, +nm[1]) : 10;
+  var num = mentioned.filter(function(c){ return c.type==='number'; })[0];
+  if(!num && agg!=='count') num = cols.filter(function(c){ return c.type==='number'; })[0];
+  if(agg!=='count' && !num) return {text:'This dataset has no numeric column to calculate on. Try "count rows by '+(cols[0]?cols[0].name:'column')+'".'};
+  var byM = / (?:by|per|for each|each|wise) ([a-z0-9 ]+)/.exec(nqs), grp = null;
+  if(byM) grp = cols.filter(function(c){ return c!==num && chatNorm(byM[1]).indexOf(chatNorm(c.name))===0; })[0] || null;
+  if(!grp) grp = mentioned.filter(function(c){ return c.type!=='number' && !filterCols[c.name]; })[0] || null;
+  if(!grp && rank && agg!=='count') grp = cols.filter(function(c){ return c.type!=='number' && !filterCols[c.name]; })[0] || null;
+  function calc(list){
+    if(agg==='count') return list.length;
+    var v = list.map(function(r){ return chatNum(r[num.name]); }).filter(function(x){ return x!==null; });
+    if(!v.length) return 0;
+    if(agg==='avg') return v.reduce(function(a,b){return a+b;},0)/v.length;
+    if(agg==='max') return Math.max.apply(null,v); if(agg==='min') return Math.min.apply(null,v);
+    return v.reduce(function(a,b){return a+b;},0);
+  }
+  var label = agg==='count' ? 'Number of rows' : ({sum:'Total',avg:'Average',max:'Highest',min:'Lowest'})[agg]+' '+num.name;
+  var chartY = num ? num.name : cols[0].name;
+  if(!grp){
+    var val = calc(fRows);
+    return {text: label+fText+' in "'+ds.name+'": <b>'+chatEsc(fmtNum(Math.round(val*100)/100))+'</b>', chart:{type:'kpi', title:label+fText, xField:null, yField:chartY, agg:agg}, ds:ds};
+  }
+  var groups = {}; fRows.forEach(function(r){ var k = r[grp.name]==null||r[grp.name]===''?'(blank)':r[grp.name]; (groups[k]=groups[k]||[]).push(r); });
+  var out = Object.keys(groups).map(function(k){ return [k, calc(groups[k])]; }).sort(function(a,b){ return asc ? a[1]-b[1] : b[1]-a[1]; });
+  var shown = out.slice(0, limit);
+  var head = rank && shown.length ? (asc?'Lowest':'Highest')+' '+grp.name+': <b>'+chatEsc(shown[0][0])+'</b> ('+chatEsc(fmtNum(Math.round(shown[0][1]*100)/100))+').<br>' : '';
+  var tbl = '<table class="chat-tbl"><tr><th>'+chatEsc(grp.name)+'</th><th>'+chatEsc(agg==='count'?'Rows':label.replace(/ .*/,'')+' '+(num?num.name:''))+'</th></tr>'
+    + shown.map(function(r){ return '<tr><td>'+chatEsc(r[0])+'</td><td>'+chatEsc(fmtNum(Math.round(r[1]*100)/100))+'</td></tr>'; }).join('')+'</table>';
+  return {text: head+(agg==='count'?'Rows':label)+' by '+chatEsc(grp.name)+chatEsc(fText)+':'+tbl+(out.length>shown.length?'<div class="chat-more">Showing '+shown.length+' of '+out.length+'.</div>':''),
+    chart:{type:'bar', title:label+' by '+grp.name+fText, xField:grp.name, yField:chartY, agg:agg}, ds:ds};
+}
+function chatReply(q){
+  var nq = chatNorm(q);
+  if(/^(hi|hello|hey|help|\?)$/.test(nq)) return {text:'Hi! Ask me how to use Gridwork, or ask about your data, like "total Amount by Region" or "top 3 Product by Amount". I can also open things: "open Sales dashboard".'};
+  var nav = /^(?:open|go to|goto|show me|show|take me to)\s+(?:the\s+)?(.+?)(?:\s+(?:dashboard|dataset|page|tab|section))?$/.exec(nq);
+  if(nav){
+    var t = nav[1], hit = null;
+    Object.values(Store.dashboards).forEach(function(d){ if(!hit && chatNorm(d.name).indexOf(t)>=0) hit = ['dashboard "'+d.name+'"', function(){ state.section='dashboard'; openDashboard(d.id); }]; });
+    Object.values(Store.datasets).forEach(function(d){ if(!hit && chatNorm(d.name).indexOf(t)>=0) hit = ['dataset "'+d.name+'"', function(){ state.section='dashboard'; openDataset(d.id); }]; });
+    SECTIONS.concat([['trash','Trash'],['settings','Settings']]).forEach(function(sc){ if(!hit && chatNorm(sc[1])===t) hit = ['the '+sc[1]+' page', function(){ openSection(sc[0]); }]; });
+    if(hit) return {text:'Opening '+chatEsc(hit[0])+'.', run:hit[1]};
+  }
+  if(/\b(list|what|which|all)\b.*\b(datasets?|tables?)\b/.test(nq) && !/\bby\b/.test(nq)){
+    var dl = Object.values(Store.datasets); return {text: dl.length ? 'Your datasets:<ul class="chat-ul">'+dl.map(function(d){ return '<li>'+chatEsc(d.name)+' ('+Store.getRows(d.id).length+' rows)</li>'; }).join('')+'</ul>' : 'No datasets yet. Load the sample one from the Examples tab.'};
+  }
+  if(/\b(list|what|which|all)\b.*\bdashboards?\b/.test(nq)){
+    var bl = Object.values(Store.dashboards); return {text: bl.length ? 'Your dashboards:<ul class="chat-ul">'+bl.map(function(d){ return '<li>'+chatEsc(d.name)+'</li>'; }).join('')+'</ul>' : 'No dashboards yet.'};
+  }
+  if(/\b(how|where|can i|what is|why|steps)\b/.test(nq) || /\b(help|guide)\b/.test(nq)){
+    for(var i=0;i<CHAT_HELP.length;i++){ if(CHAT_HELP[i][0].test(nq)) return {text:CHAT_HELP[i][1]}; }
+  }
+  var ds = chatDataset(q);
+  var dataish = /\b(total|sum|average|avg|mean|count|how many|number of|max|min|highest|lowest|top|bottom|best|worst|most|least|by|per|where)\b/.test(nq);
+  if(dataish){
+    if(!ds) return {text:'Which dataset? Open one first, or include its name, for example: "total Amount by Region in Example: Sales Orders".'};
+    return chatAnswerData(q, ds);
+  }
+  for(var j=0;j<CHAT_HELP.length;j++){ if(CHAT_HELP[j][0].test(nq)) return {text:CHAT_HELP[j][1]}; }
+  var cl = ds ? (ds.columns||[]).map(function(c){ return c.name; }).slice(0,6).join(', ') : '';
+  return {text:'I did not catch that. Try: "How do I restore a deleted chart?", "List my datasets", "Open Sales dashboard"'+(ds?', or ask about "'+chatEsc(ds.name)+'" like "total '+chatEsc(((ds.columns||[]).filter(function(c){return c.type==='number';})[0]||{name:'value'}).name)+' by '+chatEsc(((ds.columns||[]).filter(function(c){return c.type!=='number';})[0]||{name:'category'}).name)+'". Columns: '+chatEsc(cl)+'.':'.')};
+}
+function chatAddBubble(who, html, extra){
+  var log = document.getElementById('chat-log'), b = document.createElement('div');
+  b.className = 'chat-msg '+who; b.innerHTML = html; log.appendChild(b);
+  if(extra && extra.chart && canEdit() && state.view==='dashboard' && state.currentDashboardId){
+    var btn = document.createElement('button'); btn.className='btn chat-add'; btn.textContent='Add as chart to this dashboard';
+    btn.onclick = async function(){
+      btn.disabled = true;
+      try{
+        var slot = nextCardSlot(state.currentDashboardId), ch = extra.chart;
+        var card = {dashboardId:state.currentDashboardId, datasetId:extra.ds.id, type:ch.type, title:ch.title, xField:ch.xField, yField:ch.yField, agg:ch.agg, posX:slot.posX, posY:slot.posY, width:slot.width, height:slot.height};
+        var id = await Store.saveCard(card); card.id = id; Store.cards[id] = card; btn.textContent='Added ✓'; renderAll();
+      }catch(e){ btn.disabled=false; toast('Could not add the chart.', true); }
+    };
+    b.appendChild(btn);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+function chatSend(text){
+  text = (text||'').trim(); if(!text) return;
+  chatAddBubble('me', chatEsc(text));
+  var r; try{ r = chatReply(text); }catch(e){ r = {text:'Sorry, I could not work that out. Try rephrasing.'}; }
+  setTimeout(function(){ chatAddBubble('bot', r.text, r); if(r.run) r.run(); }, 180);
+}
+function wireChatbot(){
+  var fab = document.createElement('button'); fab.id='chat-fab'; fab.title='Ask Gridwork'; fab.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>';
+  var panel = document.createElement('div'); panel.id='chat-panel';
+  panel.innerHTML = '<div class="chat-head"><b>Ask Gridwork</b><button id="chat-close" aria-label="Close">×</button></div><div id="chat-log"></div><div id="chat-chips"></div><div class="chat-input"><input id="chat-in" placeholder="Ask about your data or the app" autocomplete="off"><button class="btn btn-primary" id="chat-send">Send</button></div>';
+  document.body.appendChild(fab); document.body.appendChild(panel);
+  function chips(){
+    var ds = chatDataset(''), cs = ['How do I restore a deleted chart?','List my datasets'];
+    if(ds){ var n=(ds.columns||[]).filter(function(c){return c.type==='number';})[0], t=(ds.columns||[]).filter(function(c){return c.type!=='number';})[0]; if(n&&t){ cs.push('Total '+n.name+' by '+t.name); cs.push('Top 3 '+t.name+' by '+n.name); } }
+    var box = document.getElementById('chat-chips'); box.innerHTML='';
+    cs.forEach(function(c){ var b=document.createElement('button'); b.textContent=c; b.onclick=function(){ chatSend(c); }; box.appendChild(b); });
+  }
+  function toggle(open){ panel.classList.toggle('open', open); if(open){ if(!document.getElementById('chat-log').children.length) chatAddBubble('bot','Hi! Ask me how to use Gridwork, or ask about your data. Everything runs in your browser, no AI service involved.'); chips(); setTimeout(function(){ document.getElementById('chat-in').focus(); }, 60); } }
+  fab.onclick = function(){ toggle(!panel.classList.contains('open')); };
+  document.getElementById('chat-close').onclick = function(){ toggle(false); };
+  var inp = document.getElementById('chat-in');
+  function go(){ var v = inp.value; inp.value=''; chatSend(v); }
+  document.getElementById('chat-send').onclick = go;
+  inp.addEventListener('keydown', function(e){ if(e.key==='Enter') go(); });
+}
+wireChatbot();
+
 
 /* ================= ROUTING (hash-based) ================= */
 var suppressHashChange = false;
