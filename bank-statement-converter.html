@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bank Statement to Excel</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1f2430;--mu:#6b7280;--bd:#e3e6ec;--ac:#2563eb;--ok:#16a34a;--wa:#d97706;--er:#dc2626}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+main{max-width:980px;margin:0 auto;padding:28px 16px}h1{font-size:22px;margin:0 0 4px}.sub{color:var(--mu);margin:0 0 20px}
+.drop{border:2px dashed var(--bd);background:var(--card);border-radius:12px;padding:34px;text-align:center;cursor:pointer;transition:.15s}
+.drop:hover,.drop.on{border-color:var(--ac);background:#eff4ff}.drop b{color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-top:16px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.sp{flex:1}
+.tag{font-size:12px;padding:2px 9px;border-radius:99px;background:#eef2ff;color:var(--ac)}
+.ok{color:var(--ok)}.wa{color:var(--wa)}.er{color:var(--er)}.mu{color:var(--mu)}
+.st{display:flex;gap:22px;flex-wrap:wrap;margin:10px 0;font-size:13px}.st div span{display:block;color:var(--mu);font-size:12px}
+button{font:inherit;border:0;border-radius:8px;padding:9px 16px;background:var(--ac);color:#fff;cursor:pointer}button:disabled{opacity:.5}
+.wrap{overflow:auto;max-height:340px;border:1px solid var(--bd);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{padding:5px 9px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:#f1f3f7}td.n,th.n{text-align:right}td.d{white-space:normal;min-width:260px;max-width:420px;word-break:break-all}tr.bad{background:#fef2f2}
+</style></head><body><main>
+<h1>Bank Statement &rarr; Excel</h1>
+<p class="sub">Transactions only: Date, Description, Ref/Cheque No, Debit, Credit, Balance. Files are read in your browser and never uploaded.</p>
+<div class="drop" id="drop"><b>Click to choose</b> or drop bank statement PDFs here<br><span class="mu">Kotak, ICICI, IDFC FIRST tested; other banks use automatic column detection</span>
+<input id="fi" type="file" accept="application/pdf" multiple hidden></div>
+<div id="out"></div>
+<div class="row" id="bar" style="margin-top:16px;display:none"><span class="sp mu" id="msg"></span><button id="dl">Download Excel</button></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+/*CORE*/
+const DRE=/^\d{1,2}[ .\/-](?:[A-Za-z]{3}|\d{1,2})[ .\/-]\d{2,4}$/,ARE=/^-?\d[\d,]*\.\d{2}$/;
+const STOP=/registered office|statement generated|page\s+\d+\s+of\s+\d+|^sincer|^www\.|never share your|dial your bank|please call from|important message|important information|account summary|end of statement|legends for|commonly used/i;
+const END=/account summary|end of statement|^sincer|important message|legends for|important information/i;
+const MON={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+const cx=i=>i.x+i.w/2,num=s=>parseFloat(s.replace(/,/g,''));
+function pd(s){const p=s.split(/[ .\/-]/);const m=isNaN(p[1])?MON[p[1].toLowerCase()]:+p[1]-1;let y=+p[2];if(y<100)y+=2000;return new Date(Date.UTC(y,m,+p[0]))}
+function findHdr(its){
+ for(const d of its){
+  if(!/particulars|description|remarks|narration|details/i.test(d.s))continue;
+  const b=its.filter(i=>Math.abs(i.y-d.y)<=18),f=r=>b.filter(i=>r.test(i.s)).sort((p,q)=>p.x-q.x);
+  const db=f(/withdrawal|debit/i)[0],cr=f(/deposit|credit/i)[0],ba=f(/balance/i)[0],ch=f(/cheque|chq|ref/i)[0];
+  if(!(f(/date/i).length&&db&&cr&&ba))continue;
+  const left=b.filter(i=>i!==d&&i.x+i.w<=d.x+1&&i!==ch);
+  const ds=left.length?Math.max(...left.map(i=>i.x+i.w))+2:d.x-10;
+  const txt=ch&&cx(ch)>cx(d)?ch:d;
+  return{descStart:ds,chqStart:ch&&cx(ch)>cx(d)?(cx(d)+cx(ch))/2:Infinity,numStart:(cx(txt)+cx(db))/2,db:cx(db),cr:cx(cr),ba:cx(ba),bottom:Math.min(...b.map(i=>i.y))-3};
+ }return null}
+function join(s,t){return s?(/[\/-]$/.test(s)?s:s+' ')+t:t}
+function parse(pages,tol){
+ let L=null,rows=[],open=null,ended=false;
+ for(const raw of pages){
+  if(ended)break;
+  let its=raw.map(i=>({...i,s:i.s.trim()})).filter(i=>i.s);
+  const stops=its.filter(i=>STOP.test(i.s));
+  if(stops.length){const ty=Math.max(...stops.map(i=>i.y));its=its.filter(i=>i.y>ty+1)}
+  const end=stops.some(i=>END.test(i.s)),h=findHdr(its);
+  if(h){L=h;its=its.filter(i=>i.y<h.bottom)}
+  if(L){
+   its.sort((a,b)=>Math.abs(a.y-b.y)<3?a.x-b.x:b.y-a.y);
+   const anc=[];for(const i of its)if(DRE.test(i.s)&&i.x<L.descStart&&!anc.some(a=>Math.abs(a.y-i.y)<3))anc.push(i);
+   const bl=anc.map(a=>({a,it:[]})),lead=[];
+   for(const i of its){if(DRE.test(i.s)&&i.x<L.descStart)continue;let b=null,m=1e9;for(const k of bl){if(tol){if(k.a.y+tol>=i.y)b=k}else{const d=Math.abs(k.a.y-i.y);if(d<m){m=d;b=k}}}(b?b.it:lead).push(i)}
+   if(bl.length&&!tol){const k=bl[0],ext=Math.max(0,...k.it.filter(i=>i.y<=k.a.y).map(i=>k.a.y-i.y));k.it=k.it.filter(i=>{if(i.y-k.a.y>ext+3){lead.push(i);return false}return true})}
+   const put=(r,i)=>{if(i.x>=L.numStart)return;if(i.x>=L.chqStart)r.ref+=i.s;else if(i.x>=L.descStart)r.desc=join(r.desc,i.s)};
+   const lb=lead.find(i=>/opening balance/i.test(i.s));
+   if(lb&&open===null){const v=lead.filter(i=>ARE.test(i.s)&&cx(i)>L.numStart).pop();if(v)open=num(v.s)}
+   else if(h&&rows.length)lead.forEach(i=>put(rows[rows.length-1],i));
+   for(const k of bl){
+    const r={date:pd(k.a.s),desc:'',ref:'',debit:null,credit:null,bal:null};
+    for(const i of k.it){
+     if(ARE.test(i.s)&&cx(i)>L.numStart){const c=cx(i),t=[['debit',L.db],['credit',L.cr],['bal',L.ba]].sort((p,q)=>Math.abs(p[1]-c)-Math.abs(q[1]-c))[0][0];r[t]=num(i.s)}
+     else put(r,i)}
+    rows.push(r)}
+  }
+  if(end)ended=true}
+ let prev=open,derived=false;
+ rows.forEach((r,n)=>{r.n=n;r.ok=true;const d=r.debit||0,c=r.credit||0;
+  if(r.bal===null){r.ok=false;r.why='Balance not found';return}
+  if(prev===null){prev=r.bal+d-c;open=prev;derived=true}
+  else if(Math.abs(prev-d+c-r.bal)>=.005){
+   if(Math.abs(prev-c+d-r.bal)<.005){r.debit=c||null;r.credit=d||null}
+   else{r.ok=false;r.why='Balance does not follow previous row (expected '+(prev-d+c).toFixed(2)+')'}}
+  prev=r.bal});
+ const sum=k=>rows.reduce((s,r)=>s+(r[k]||0),0);
+ return{rows,open,derived,close:rows.length?rows[rows.length-1].bal:null,td:sum('debit'),tc:sum('credit'),bad:rows.filter(r=>!r.ok).length};
+}
+function bankOf(t){return/kotak/i.test(t)?'Kotak':/icici bank/i.test(t)?'ICICI':/idfc/i.test(t)?'IDFC FIRST':'Other (auto-detected)'}
+/*ENDCORE*/
+const $=id=>document.getElementById(id),fmt=v=>v==null?'':v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const dstr=d=>d.toISOString().slice(0,10).split('-').reverse().join('-');
+let results=[];
+async function readPages(file){
+ const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,out=[];
+ for(let p=1;p<=pdf.numPages;p++){const tc=await(await pdf.getPage(p)).getTextContent();out.push(tc.items.map(t=>({s:t.str,x:t.transform[4],y:t.transform[5],w:t.width})))}
+ return out}
+function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function card(name,r,bank,err){
+ const c=el('div','card'),h=el('div','row');h.append(el('b',0,name),el('span','tag',bank),el('span','sp'));c.append(h);
+ if(err){c.append(el('p','er',err));return c}
+ if(!r.rows.length){c.append(el('p','er','No transactions found. This layout is not recognised yet.'));return c}
+ h.append(el('span',r.bad?'wa':'ok',r.bad?r.bad+' row(s) need checking':'All '+r.rows.length+' rows reconcile'));
+ const s=el('div','st');[['Rows',r.rows.length],['Opening'+(r.derived?' (derived)':''),fmt(r.open)],['Total debit',fmt(r.td)],['Total credit',fmt(r.tc)],['Closing',fmt(r.close)]].forEach(([k,v])=>{const d=el('div');d.append(el('span',0,k),document.createTextNode(v));s.append(d)});c.append(s);
+ const w=el('div','wrap'),t=el('table'),hr=el('tr');['Date','Description','Ref/Cheque No','Debit','Credit','Balance'].forEach((x,i)=>hr.append(el('th',i>2?'n':'',x)));t.append(hr);
+ const show=[...r.rows.filter(x=>!x.ok),...r.rows.filter(x=>x.ok).slice(0,60)];
+ show.forEach(x=>{const tr=el('tr',x.ok?'':'bad');tr.append(el('td',0,dstr(x.date)),el('td','d',x.desc+(x.ok?'':'  ⚠ '+x.why)),el('td',0,x.ref),el('td','n',fmt(x.debit)),el('td','n',fmt(x.credit)),el('td','n',fmt(x.bal)));t.append(tr)});
+ w.append(t);c.append(w);c.append(el('p','mu','Preview shows flagged rows first, then the first 60 rows. The Excel file has every row.'));return c}
+async function run(files){
+ $('out').textContent='';results=[];$('bar').style.display='none';
+ for(const f of files){
+  const ph=el('div','card',f.name+' – reading…');$('out').append(ph);
+  try{const pg=await readPages(f),bank=bankOf(pg[0].map(i=>i.s).join(' ')),r=parse(pg,bank==='ICICI'?8:0);
+   ph.replaceWith(card(f.name,r,bank));if(r.rows.length)results.push({name:f.name,r})}
+  catch(e){ph.replaceWith(card(f.name,null,'',e.name==='PasswordException'?'This PDF is password protected. Remove the password first.':'Could not read this file: '+e.message))}}
+ if(results.length){$('bar').style.display='flex';$('msg').textContent=results.length+' file(s) ready'}}
+$('dl').onclick=async()=>{
+ const wb=new ExcelJS.Workbook(),used=new Set();
+ for(const {name,r} of results){
+  let n=name.replace(/\.pdf$/i,'').replace(/[\\\/?*\[\]:]/g,'').slice(0,28)||'Sheet',k=n,j=1;while(used.has(k))k=n+'_'+(j++);used.add(k);
+  const ws=wb.addWorksheet(k,{views:[{state:'frozen',ySplit:1}]});
+  ws.columns=[{header:'Date',key:'date',width:13,style:{numFmt:'dd-mmm-yyyy'}},{header:'Description',key:'desc',width:70},{header:'Ref/Cheque No',key:'ref',width:24},
+   {header:'Debit',key:'debit',width:15,style:{numFmt:'#,##0.00'}},{header:'Credit',key:'credit',width:15,style:{numFmt:'#,##0.00'}},{header:'Balance',key:'bal',width:16,style:{numFmt:'#,##0.00'}}];
+  ws.getRow(1).font={bold:true};
+  r.rows.forEach(x=>ws.addRow({date:x.date,desc:x.desc,ref:x.ref,debit:x.debit,credit:x.credit,bal:x.bal}))}
+ const a=el('a');a.href=URL.createObjectURL(new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+ a.download='bank-statements.xlsx';a.click()};
+$('drop').onclick=()=>$('fi').click();$('fi').onchange=e=>run([...e.target.files]);
+$('drop').ondragover=e=>{e.preventDefault();$('drop').classList.add('on')};$('drop').ondragleave=()=>$('drop').classList.remove('on');
+$('drop').ondrop=e=>{e.preventDefault();$('drop').classList.remove('on');run([...e.dataTransfer.files].filter(f=>/pdf$/i.test(f.type||f.name)))};
+</script></body></html>
